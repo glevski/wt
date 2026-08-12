@@ -4,10 +4,12 @@
 package cli
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 const usage = `worktree — fast git worktree manager (alias it to wt via "init")
@@ -43,7 +45,9 @@ Usage:
                         link, worktree and path; -g/--git appends git status
                         output as if run there
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
-                        -b also deletes its branch when merged (alias: rm)
+                        -b also deletes its branch when merged (alias: rm).
+                        A quoted glob ('dev-*', '*') bulk-removes matching
+                        wt-managed worktrees after listing and confirmation
   wt reset [--hard] [base]  move the worktree's branch back to its base
                         branch's tip (recorded at creation), staying on the
                         branch; refuses with local changes unless --hard
@@ -56,11 +60,19 @@ create and fork need a linked repo: worktrees are created under
 ~/worktrees/<linked-name>/, overridable with $WT_ROOT or "git config wt.root".
 `
 
-// stdout/stderr are swapped out by tests.
+// stdin/stdout/stderr are swapped out by tests.
 var (
+	stdin  io.Reader = os.Stdin
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
 )
+
+// confirm asks a y/N question; only a plain "y" answer proceeds.
+func confirm(question string) bool {
+	fmt.Fprintf(stderr, "%s [y/N] ", question)
+	line, _ := bufio.NewReader(stdin).ReadString('\n')
+	return strings.TrimSpace(line) == "y"
+}
 
 // Run dispatches a command line and returns the process exit code.
 func Run(args []string) int {

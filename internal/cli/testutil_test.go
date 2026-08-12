@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"wt/internal/gittest"
@@ -43,4 +44,12 @@ func worktreePath(root, project, name string) string {
 // jumpScript is what a jump command emits on stdout for the wrapper to eval.
 func jumpScript(dest, home string) string {
 	return fmt.Sprintf("cd '%s'\nexport WT_HOME='%s'\n", dest, home)
+}
+
+// stdinInput feeds the given text as the user's stdin for one test.
+func stdinInput(t *testing.T, text string) {
+	t.Helper()
+	orig := stdin
+	stdin = strings.NewReader(text)
+	t.Cleanup(func() { stdin = orig })
 }

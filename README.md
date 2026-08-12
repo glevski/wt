@@ -150,6 +150,12 @@ default; `-b` deletes it too — safely (`git branch -d`), so an unmerged branch
 survives with a hint. The main checkout and the worktree you are standing in
 cannot be removed.
 
+A glob pattern bulk-removes: `wt rm 'dev-*'` or `wt rm '*'` (quote it so your
+shell doesn't expand it). Wildcards only ever match **wt-managed** worktrees —
+never the root, bases, external tools' worktrees, or the one you're standing
+in — and always print the matches and ask `[y/N]` first; only a plain `y`
+proceeds. `-f`/`-b` apply to every match.
+
 ### `wt status [name]`
 
 Shows a worktree — the current one by default, or any worktree by name
