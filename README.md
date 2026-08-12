@@ -100,6 +100,13 @@ on that branch and jumps there — shorthand for `wt fork -c <new-branch>`.
 Jumps back to the main checkout (the root repo), from wherever you are —
 no name needed.
 
+### `wt switch`
+
+Toggles between where you are and where your last wt jump left from — like
+`cd -`. Run it twice and you're back. The history lives in a plain shell
+variable inside the `wt()` function, so every terminal has its own,
+independent toggle state.
+
 ### `wt remove [-f] [-b] <name>` (alias: `rm`)
 
 Removes a worktree by name (prefix matching like `ch`). Refuses when the

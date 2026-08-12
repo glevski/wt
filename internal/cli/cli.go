@@ -26,6 +26,8 @@ Usage:
                         -b <new-branch> forks your current state into a new
                         worktree and jumps there (like git checkout -b)
   wt home               jump back to the main checkout (root repo)
+  wt switch             toggle between the current and last-used location,
+                        like cd - (state is per shell)
   wt list               list this repo's worktrees (alias: ls)
   wt status             show project link, current worktree and git status
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
@@ -73,6 +75,9 @@ func Run(args []string) int {
 func dispatch(cmd string, args []string) error {
 	if cmd == "init" {
 		return shellInit(args)
+	}
+	if cmd == "switch" {
+		return switchTo(args)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
