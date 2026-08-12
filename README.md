@@ -129,6 +129,11 @@ shows `-`). `CHECKOUT` is the last time wt jumped there — via `checkout`/`ch`
 or a `-c` flag — recorded as a stamp file in the worktree's git admin dir, so
 it starts as `-` and travels/dies with the worktree.
 
+On a terminal, names are colored by kind: **blue** for the main checkout,
+**green** for wt-managed worktrees (under the workspace root), **magenta**
+for worktrees created elsewhere by other tools (e.g. `.claude/worktrees`).
+Piped output and `NO_COLOR` stay plain.
+
 ## Where worktrees live
 
 `~/worktrees/<linked-name>/<worktree>` — the project name comes from

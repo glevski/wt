@@ -3,12 +3,21 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
-	"text/tabwriter"
 	"time"
+	"unicode/utf8"
 
 	"wt/internal/git"
+)
+
+const (
+	ansiBlue    = "\x1b[34m"
+	ansiMagenta = "\x1b[35m"
+	ansiGreen   = "\x1b[32m"
+	ansiReset   = "\x1b[0m"
 )
 
 func list(dir string, args []string) error {
@@ -37,13 +46,11 @@ func list(dir string, args []string) error {
 	wg.Wait()
 
 	current := ws.repo.Current()
-	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  NAME\tBRANCH\tSTATE\tCOMMIT\tCREATED\tCHECKOUT")
+	header := []string{"NAME", "BRANCH", "STATE", "COMMIT", "CREATED", "CHECKOUT"}
+	rows := make([][]string, len(worktrees))
+	colors := make([]string, len(worktrees))
+	markers := make([]string, len(worktrees))
 	for i, wt := range worktrees {
-		marker := " "
-		if current != nil && wt.Path == current.Path {
-			marker = "*"
-		}
 		branch := wt.Branch
 		if wt.Detached {
 			branch = "(detached)"
@@ -52,11 +59,85 @@ func list(dir string, args []string) error {
 		if commit == "" {
 			commit = "-"
 		}
-		fmt.Fprintf(tw, "%s %s\t%s\t%s\t%s\t%s\t%s\n",
-			marker, filepath.Base(wt.Path), branch, states[i], commit,
-			when(git.CreatedAt(wt.Path)), when(git.CheckoutStamp(wt.Path)))
+		rows[i] = []string{
+			filepath.Base(wt.Path), branch, states[i], commit,
+			when(git.CreatedAt(wt.Path)), when(git.CheckoutStamp(wt.Path)),
+		}
+		colors[i] = worktreeColor(i == 0, strings.HasPrefix(wt.Path, ws.root+"/"))
+		markers[i] = " "
+		if current != nil && wt.Path == current.Path {
+			markers[i] = "*"
+		}
 	}
-	return tw.Flush()
+
+	widths := make([]int, len(header))
+	for c, h := range header {
+		widths[c] = len(h)
+	}
+	for _, row := range rows {
+		for c, cell := range row {
+			if n := utf8.RuneCountInString(cell); n > widths[c] {
+				widths[c] = n
+			}
+		}
+	}
+
+	paint := colorEnabled()
+	printRow := func(marker string, cells []string, color string) {
+		var b strings.Builder
+		b.WriteString(marker + " ")
+		for c, cell := range cells {
+			if c > 0 {
+				b.WriteString("  ")
+			}
+			padded := pad(cell, widths[c])
+			if c == 0 && color != "" {
+				padded = color + padded + ansiReset
+			}
+			b.WriteString(padded)
+		}
+		fmt.Fprintln(stdout, strings.TrimRight(b.String(), " "))
+	}
+	printRow(" ", header, "")
+	for i, row := range rows {
+		color := ""
+		if paint {
+			color = colors[i]
+		}
+		printRow(markers[i], row, color)
+	}
+	return nil
+}
+
+// worktreeColor picks the NAME color: blue for the main checkout, green for
+// wt-managed worktrees (under the workspace root), magenta for worktrees
+// created elsewhere by other tools.
+func worktreeColor(main, managed bool) string {
+	switch {
+	case main:
+		return ansiBlue
+	case managed:
+		return ansiGreen
+	default:
+		return ansiMagenta
+	}
+}
+
+// colorEnabled reports whether stdout is a real terminal that wants color.
+func colorEnabled() bool {
+	f, ok := stdout.(*os.File)
+	if !ok {
+		return false
+	}
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+func pad(s string, width int) string {
+	return s + strings.Repeat(" ", width-utf8.RuneCountInString(s))
 }
 
 func worktreeState(path string) string {
