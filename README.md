@@ -118,11 +118,16 @@ nothing to commit, working tree clean
 
 ```
 $ wt list
-  NAME          BRANCH        STATE  PATH
-* devbox        main          dirty  /devbox
-  feature-auth  feature/auth  clean  /home/dev/worktrees/devbox/feature-auth
-  main-2        main-2        clean  /home/dev/worktrees/devbox/main-2
+  NAME          BRANCH        STATE  COMMIT   CREATED  CHECKOUT
+* devbox        main          dirty  4b9a96f  -        now
+  feature-auth  feature/auth  clean  163a116  2d       5h
+  main-2        main-2        clean  4b9a96f  3h       -
 ```
+
+`CREATED` is the worktree's age (from git's own metadata; the main checkout
+shows `-`). `CHECKOUT` is the last time wt jumped there — via `checkout`/`ch`
+or a `-c` flag — recorded as a stamp file in the worktree's git admin dir, so
+it starts as `-` and travels/dies with the worktree.
 
 ## Where worktrees live
 

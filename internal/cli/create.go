@@ -169,6 +169,7 @@ func reportCreated(path string, checkout bool) {
 // (that's all -c/--checkout is: a path on stdout), or says how to get there.
 func reportSwitch(path string, checkout bool) {
 	if checkout {
+		git.TouchCheckoutStamp(path)
 		fmt.Fprintln(stdout, path)
 		return
 	}

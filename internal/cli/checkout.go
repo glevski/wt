@@ -24,6 +24,7 @@ func checkout(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
+	git.TouchCheckoutStamp(wt.Path)
 	logf("→ %s/%s", ws.name, filepath.Base(wt.Path))
 	fmt.Fprintln(stdout, wt.Path)
 	return nil
