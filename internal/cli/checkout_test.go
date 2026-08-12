@@ -70,6 +70,39 @@ func TestCheckoutUnknown(t *testing.T) {
 	}
 }
 
+func TestCheckoutDashB(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	out, _ := setupOutputs(t)
+	gittest.WriteFile(t, repo, "wip.txt", "x")
+
+	if err := checkout(repo, []string{"-b", "hotfix"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "hotfix")
+	if got := out.String(); got != path+"\n" {
+		t.Errorf("stdout = %q, want %q (must cd like git checkout -b)", got, path+"\n")
+	}
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "hotfix" {
+		t.Errorf("branch = %q, want hotfix", got)
+	}
+	if got := gittest.Git(t, path, "ls-files", "--others", "--exclude-standard"); got != "wip.txt" {
+		t.Errorf("untracked in fork = %q, want wip.txt", got)
+	}
+}
+
+func TestCheckoutDashBExistingBranch(t *testing.T) {
+	repo := linkedRepo(t)
+	wtRoot(t)
+	setupOutputs(t)
+	gittest.Git(t, repo, "branch", "taken")
+
+	err := checkout(repo, []string{"-b", "taken"})
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestCheckoutMainWorktreeByRepoName(t *testing.T) {
 	repo, _, _ := checkoutFixture(t)
 	out, _ := setupOutputs(t)

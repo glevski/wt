@@ -91,6 +91,10 @@ Jumps (cd's) to a worktree by its directory name; unique prefixes work too.
 No git state changes hands here — every worktree permanently has its branch
 checked out.
 
+`wt ch -b <new-branch>` works like `git checkout -b`: it forks your current
+state (staged, unstaged and untracked changes included) into a new worktree
+on that branch and jumps there — shorthand for `wt fork -c <new-branch>`.
+
 ### `wt home`
 
 Jumps back to the main checkout (the root repo), from wherever you are —

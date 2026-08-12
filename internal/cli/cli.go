@@ -22,7 +22,9 @@ Usage:
                         -n/--name set its directory name, where a leading dash
                         appends to the branch (-n -fix → <branch>-fix)
   wt checkout <name>    jump to a worktree by name, unique prefixes work
-                        (alias: ch; needs the wt() shell function)
+                        (alias: ch; needs the wt() shell function);
+                        -b <new-branch> forks your current state into a new
+                        worktree and jumps there (like git checkout -b)
   wt home               jump back to the main checkout (root repo)
   wt list               list this repo's worktrees (alias: ls)
   wt status             show project link, current worktree and git status

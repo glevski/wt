@@ -21,6 +21,11 @@ func fork(dir string, args []string) error {
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
 		return errors.New("usage: wt fork [-c|--checkout] [-n|--name <name>] [new-branch]")
 	}
+	return forkRun(dir, fs.Args(), *name, *checkout)
+}
+
+// forkRun is the fork engine; `wt checkout -b` delegates here too.
+func forkRun(dir string, args []string, nameOverride string, checkout bool) error {
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
@@ -32,7 +37,7 @@ func fork(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
-	branch, path, err := forkName(ws, source, fs.Args(), *name)
+	branch, path, err := forkName(ws, source, args, nameOverride)
 	if err != nil {
 		return err
 	}
@@ -78,7 +83,7 @@ func fork(dir string, args []string) error {
 	}
 
 	logf("carried over: %d staged, %d unstaged, %d untracked file(s)", len(staged), len(unstaged), len(untracked))
-	reportSwitch(path, *checkout)
+	reportSwitch(path, checkout)
 	return nil
 }
 

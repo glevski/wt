@@ -2,25 +2,42 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
 	"wt/internal/git"
 )
 
+const checkoutUsage = "usage: wt checkout <worktree-name> | wt checkout -b <new-branch>"
+
 // checkout prints the chosen worktree's absolute path on stdout; the wt()
 // shell function turns that into a cd. Nothing to check out in git terms —
-// every worktree has its branch permanently checked out.
+// every worktree has its branch permanently checked out. With -b it behaves
+// like `git checkout -b`: fork the current state into a new branch and jump.
 func checkout(dir string, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: wt checkout <worktree-name>")
+	fs := flag.NewFlagSet("wt checkout", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	newBranch := fs.String("b", "", "fork into a new branch and jump there")
+	if err := fs.Parse(args); err != nil {
+		return errors.New(checkoutUsage)
+	}
+	if *newBranch != "" {
+		if fs.NArg() != 0 {
+			return errors.New(checkoutUsage)
+		}
+		return forkRun(dir, []string{*newBranch}, "", true)
+	}
+	if fs.NArg() != 1 {
+		return errors.New(checkoutUsage)
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
 	}
-	wt, err := matchWorktree(ws.repo.Worktrees, args[0])
+	wt, err := matchWorktree(ws.repo.Worktrees, fs.Arg(0))
 	if err != nil {
 		return err
 	}
