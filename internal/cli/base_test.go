@@ -242,7 +242,7 @@ func TestBaseResetBlocksOnChanges(t *testing.T) {
 }
 
 func TestBaseResetGuards(t *testing.T) {
-	repo, basePath := baseFixture(t)
+	repo, _ := baseFixture(t)
 	setupOutputs(t)
 
 	if err := base(repo, []string{"reset", "staging"}); err == nil || !strings.Contains(err.Error(), "no upstream") {
@@ -251,9 +251,30 @@ func TestBaseResetGuards(t *testing.T) {
 	if err := base(repo, []string{"reset"}); err == nil || !strings.Contains(err.Error(), "not inside a base") {
 		t.Fatalf("outside-base err = %v", err)
 	}
+}
+
+func TestBaseResetRecoversDrift(t *testing.T) {
+	repo, basePath := baseFixture(t)
+	_, errOut := setupOutputs(t)
+	gittest.AddRemote(t, repo)
+	gittest.Git(t, repo, "push", "-u", "origin", "staging")
+	upstreamTip := gittest.Git(t, repo, "rev-parse", "origin/staging")
 	gittest.Git(t, basePath, "checkout", "-b", "sneaky")
-	if err := base(repo, []string{"reset", "staging"}); err == nil || !strings.Contains(err.Error(), "drifted") {
-		t.Fatalf("drifted err = %v", err)
+
+	if err := base(repo, []string{"reset", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gittest.Git(t, basePath, "symbolic-ref", "--short", "HEAD"); got != "staging" {
+		t.Errorf("base branch = %q, want staging back", got)
+	}
+	if got := gittest.Git(t, basePath, "rev-parse", "HEAD"); got != upstreamTip {
+		t.Errorf("base HEAD = %s, want upstream tip %s", got, upstreamTip)
+	}
+	if refs, _ := git.LookupBranch(repo, "sneaky"); !refs.Local {
+		t.Error("the drifted-to branch should survive as a branch")
+	}
+	if !strings.Contains(errOut.String(), "had drifted to branch 'sneaky'") {
+		t.Errorf("log missing drift recovery:\n%s", errOut.String())
 	}
 }
 

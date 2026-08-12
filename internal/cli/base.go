@@ -227,10 +227,10 @@ func baseUpdate(dir string, args []string) error {
 	return nil
 }
 
-// baseReset snaps a base branch back to its upstream's tip — the hard
-// sibling of update: it moves the branch wherever the upstream is, backward
-// included. Same safety contract as wt reset: local changes block it, --hard
-// proceeds keeping only untracked files.
+// baseReset restores a base to its pristine state: back on its own branch
+// when drifted, and that branch snapped to the upstream's tip — backward
+// moves included, unlike update's ff-only. Same safety contract as wt reset:
+// local changes block it, --hard proceeds keeping only untracked files.
 func baseReset(dir string, args []string) error {
 	fs := flag.NewFlagSet("wt base reset", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -264,10 +264,6 @@ func baseReset(dir string, args []string) error {
 	}
 	name := filepath.Base(target.Path)
 
-	if target.Branch != branch {
-		return hintf(fmt.Sprintf("git -C %s checkout %s brings it back", target.Path, branch),
-			"'%s' has drifted to branch '%s'", name, target.Branch)
-	}
 	up, ok := git.UpstreamOf(ws.dir(), branch)
 	if !ok {
 		return fmt.Errorf("branch '%s' has no upstream to reset to", branch)
@@ -286,6 +282,23 @@ func baseReset(dir string, args []string) error {
 			return hintf("wt base reset --hard discards tracked changes (untracked files are kept)",
 				"base '%s' has local changes", name)
 		}
+	}
+
+	if target.Branch != branch {
+		checkoutArgs := []string{"checkout"}
+		if *hard {
+			checkoutArgs = append(checkoutArgs, "-f")
+		}
+		if _, err := git.Run(target.Path, append(checkoutArgs, branch)...); err != nil {
+			return err
+		}
+		was := target.Branch
+		if was == "" {
+			was = "a detached HEAD"
+		} else {
+			was = "branch '" + was + "'"
+		}
+		logf("'%s' had drifted to %s — checked out '%s' again", name, was, branch)
 	}
 
 	if _, err := git.Run(target.Path, "reset", "--hard", tip); err != nil {
