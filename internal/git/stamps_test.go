@@ -46,4 +46,12 @@ func TestBaseRecord(t *testing.T) {
 	if base, ok := BaseBranch(linked); !ok || base != "main" {
 		t.Errorf("BaseBranch = %q, %v; want main, true", base, ok)
 	}
+
+	if _, ok := ReadBaseMark(linked); ok {
+		t.Error("ReadBaseMark before any write ok=true, want false")
+	}
+	WriteBaseMark(linked, "side")
+	if branch, ok := ReadBaseMark(linked); !ok || branch != "side" {
+		t.Errorf("ReadBaseMark = %q, %v; want side, true", branch, ok)
+	}
 }

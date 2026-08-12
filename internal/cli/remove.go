@@ -34,6 +34,9 @@ func remove(dir string, args []string) error {
 	if wt.Path == ws.repo.Worktrees[0].Path {
 		return fmt.Errorf("'%s' is the main worktree and cannot be removed", name)
 	}
+	if _, isBase := git.ReadBaseMark(wt.Path); isBase {
+		return hintf("wt base rm "+name, "'%s' is a base worktree", name)
+	}
 	if cur := ws.repo.Current(); cur != nil && cur.Path == wt.Path {
 		return hintf("wt ch "+ws.repo.Name+" first", "you are inside '%s'", name)
 	}

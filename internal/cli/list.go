@@ -17,6 +17,8 @@ const (
 	ansiCyan    = "\x1b[36m"
 	ansiMagenta = "\x1b[35m"
 	ansiGreen   = "\x1b[32m"
+	ansiOrange  = "\x1b[38;5;208m" // 256-color; the basic palette has no orange
+	ansiRed     = "\x1b[31m"
 	ansiReset   = "\x1b[0m"
 )
 
@@ -28,8 +30,18 @@ func list(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
+	return renderWorktrees(ws, nil)
+}
 
-	worktrees := ws.repo.Worktrees
+// renderWorktrees prints the worktree table, optionally filtered by keep.
+func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
+	var worktrees []git.Worktree
+	for _, wt := range ws.repo.Worktrees {
+		if keep == nil || keep(wt) {
+			worktrees = append(worktrees, wt)
+		}
+	}
+
 	states := make([]string, len(worktrees))
 	var wg sync.WaitGroup
 	for i, wt := range worktrees {
@@ -45,15 +57,21 @@ func list(dir string, args []string) error {
 	}
 	wg.Wait()
 
+	mainPath := ws.repo.Worktrees[0].Path
 	current := ws.repo.Current()
 	header := []string{"NAME", "BRANCH", "STATE", "COMMIT", "CREATED", "CHECKOUT"}
 	rows := make([][]string, len(worktrees))
-	colors := make([]string, len(worktrees))
+	rowColors := make([][]string, len(worktrees))
 	markers := make([]string, len(worktrees))
 	for i, wt := range worktrees {
+		baseBranch, isBase := git.ReadBaseMark(wt.Path)
+		drifted := isBase && wt.Branch != baseBranch
 		branch := wt.Branch
 		if wt.Detached {
 			branch = "(detached)"
+		}
+		if drifted {
+			branch += "!" // keeps the drift visible without colors too
 		}
 		commit := shortSHA(wt.Head)
 		if commit == "" {
@@ -63,7 +81,12 @@ func list(dir string, args []string) error {
 			filepath.Base(wt.Path), branch, states[i], commit,
 			when(git.CreatedAt(wt.Path)), when(git.CheckoutStamp(wt.Path)),
 		}
-		colors[i] = worktreeColor(i == 0, strings.HasPrefix(wt.Path, ws.root+"/"))
+		colors := make([]string, len(header))
+		colors[0] = worktreeColor(wt.Path == mainPath, strings.HasPrefix(wt.Path, ws.root+"/"), isBase)
+		if drifted {
+			colors[1] = ansiRed
+		}
+		rowColors[i] = colors
 		markers[i] = " "
 		if current != nil && wt.Path == current.Path {
 			markers[i] = "*"
@@ -83,7 +106,7 @@ func list(dir string, args []string) error {
 	}
 
 	paint := colorEnabled()
-	printRow := func(marker string, cells []string, color string) {
+	printRow := func(marker string, cells, colors []string) {
 		var b strings.Builder
 		b.WriteString(marker + " ")
 		for c, cell := range cells {
@@ -91,31 +114,29 @@ func list(dir string, args []string) error {
 				b.WriteString("  ")
 			}
 			padded := pad(cell, widths[c])
-			if c == 0 && color != "" {
-				padded = color + padded + ansiReset
+			if paint && colors != nil && colors[c] != "" {
+				padded = colors[c] + padded + ansiReset
 			}
 			b.WriteString(padded)
 		}
 		fmt.Fprintln(stdout, strings.TrimRight(b.String(), " "))
 	}
-	printRow(" ", header, "")
+	printRow(" ", header, nil)
 	for i, row := range rows {
-		color := ""
-		if paint {
-			color = colors[i]
-		}
-		printRow(markers[i], row, color)
+		printRow(markers[i], row, rowColors[i])
 	}
 	return nil
 }
 
-// worktreeColor picks the NAME color: cyan for the main checkout, green for
-// wt-managed worktrees (under the workspace root), magenta for worktrees
-// created elsewhere by other tools.
-func worktreeColor(main, managed bool) string {
+// worktreeColor picks the NAME color: cyan for the main checkout, orange for
+// base worktrees, green for wt-managed worktrees (under the workspace root),
+// magenta for worktrees created elsewhere by other tools.
+func worktreeColor(main, managed, base bool) string {
 	switch {
 	case main:
 		return ansiCyan
+	case base:
+		return ansiOrange
 	case managed:
 		return ansiGreen
 	default:

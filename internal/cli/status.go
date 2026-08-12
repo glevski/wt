@@ -46,13 +46,25 @@ func status(dir string, args []string) error {
 		project = "(not linked — run: wt link <name>)"
 	}
 	isMain := current.Path == ws.repo.Worktrees[0].Path
+	baseBranch, isBase := git.ReadBaseMark(current.Path)
+	drifted := isBase && current.Branch != baseBranch
+	paint := colorEnabled()
 	name := filepath.Base(current.Path)
-	if colorEnabled() {
+	if paint {
 		managed := strings.HasPrefix(current.Path, ws.root+"/")
-		name = worktreeColor(isMain, managed) + name + ansiReset
+		name = worktreeColor(isMain, managed, isBase) + name + ansiReset
 	}
-	if isMain {
+	switch {
+	case isMain:
 		name += " (home)"
+	case drifted:
+		label := fmt.Sprintf(" (base: %s, drifted)", baseBranch)
+		if paint {
+			label = ansiRed + label + ansiReset
+		}
+		name += label
+	case isBase:
+		name += " (base)"
 	}
 	fmt.Fprintf(stdout, "project   %s\n", project)
 	fmt.Fprintf(stdout, "worktree  %s\n", name)

@@ -88,6 +88,33 @@ func BaseBranch(worktreePath string) (string, bool) {
 	return base, base != ""
 }
 
+const baseMarkFile = "wt-base-mark"
+
+// WriteBaseMark marks a worktree as the base worktree for branch — a
+// permanent, view-only checkout real work is forked off from.
+func WriteBaseMark(worktreePath, branch string) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(dir, baseMarkFile), []byte(branch+"\n"), 0o644)
+}
+
+// ReadBaseMark returns the branch a base worktree is pinned to, ok=false for
+// regular worktrees.
+func ReadBaseMark(worktreePath string) (string, bool) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return "", false
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, baseMarkFile))
+	if err != nil {
+		return "", false
+	}
+	branch := strings.TrimSpace(string(raw))
+	return branch, branch != ""
+}
+
 // CheckoutStamp reports when wt last jumped into the worktree.
 func CheckoutStamp(worktreePath string) (time.Time, bool) {
 	dir, err := adminDir(worktreePath)

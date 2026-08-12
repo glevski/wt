@@ -33,6 +33,10 @@ Usage:
   wt root <cmd> [args]  run status, checkout, create or fork in the root
                         repo's context, e.g. wt root fork -c forks the root's
                         current state from wherever you stand
+  wt base [cmd]         manage base branches — permanent view-only worktrees
+                        for long-lived branches you fork real work off:
+                        add <branch>, list (default), rm [-f] <name>,
+                        update [name] (fast-forward to upstream)
   wt list               list this repo's worktrees (alias: ls)
   wt status [name]      show a worktree (default: the current one) — project
                         link, worktree and path; -g/--git appends git status
@@ -104,6 +108,8 @@ func dispatch(cmd string, args []string) error {
 		return home(cwd, args)
 	case "root":
 		return root(cwd, args)
+	case "base":
+		return base(cwd, args)
 	case "list", "ls":
 		return list(cwd, args)
 	case "status":

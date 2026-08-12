@@ -193,6 +193,37 @@ worktrees (under the workspace root), **magenta** for worktrees created
 elsewhere by other tools (e.g. `.claude/worktrees`). Piped output and
 `NO_COLOR` stay plain.
 
+## Base branches
+
+A **base branch** is a long-lived branch (main, staging, dev, …) you promote
+to a permanent, view-only worktree named after the branch:
+
+```sh
+wt base add staging
+```
+
+The problem it solves: you're mid-work on `dev` with uncommitted changes and
+a staging issue comes up. `wt ch staging` drops you into a persistent staging
+checkout — inspect, run the code, even make exploratory tweaks — with zero
+impact on your dev worktree and no new worktree minted per visit. The moment
+looking becomes real work, fork off it: `wt fork -c` from inside the base
+carries your tweaks into a properly named worktree and jumps there.
+
+- `wt base` / `wt base list` — the worktree table filtered to bases
+- `wt base add <branch>` — promote an existing (local or remote) branch;
+  refuses branches currently checked out elsewhere
+- `wt base rm [-f] <name>` — remove the base worktree; the branch itself is
+  never touched. Regular `wt rm` refuses bases outright.
+- `wt base update [name]` — fetch and fast-forward bases to their upstreams
+  (ff-only: can never lose anything; dirty, drifted or diverged bases are
+  skipped with a note)
+
+Bases show **orange** names in `list`/`status`. wt can't stop git from
+switching a base's branch — instead it *tells* you: a drifted base (checked
+out branch no longer matches its name) gets a red BRANCH cell and a `!`
+suffix in `wt list`, and `(base: staging, drifted)` in `wt status`.
+`wt reset` refuses to run inside a base — other worktrees reset *to* it.
+
 ## Where worktrees live
 
 `~/worktrees/<linked-name>/<worktree>` — the project name comes from
