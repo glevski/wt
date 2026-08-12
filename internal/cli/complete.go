@@ -39,6 +39,7 @@ var commandMenu = []string{
 	"reset:move the branch back to its base",
 	"link:link the repo to a project name",
 	"deps:manage dependency paths copied to new worktrees",
+	"peek:snapshot a revision into a disposable directory",
 	"init:print shell integration",
 }
 
@@ -94,6 +95,14 @@ func completionCandidates(dir string, words []string) []string {
 			return worktreeNames(dir, keepBases)
 		}
 		return nil
+	case "peek":
+		if len(rest) == 0 {
+			return append([]string{"off:return and delete the peek"}, branchCandidates(dir, false)...)
+		}
+		if rest[0] == "off" {
+			return peekNames(dir)
+		}
+		return nil
 	case "deps":
 		if len(rest) == 0 {
 			return depsMenu
@@ -114,6 +123,19 @@ func completionCandidates(dir string, words []string) []string {
 		return []string{"zsh", "bash"}
 	}
 	return nil
+}
+
+// peekNames lists existing peek directory basenames.
+func peekNames(dir string) []string {
+	ws, err := loadWorkspace(dir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, p := range findPeeks(ws.root) {
+		names = append(names, filepath.Base(p))
+	}
+	return names
 }
 
 // worktreeNames lists worktree directory basenames, optionally filtered.

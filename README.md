@@ -251,6 +251,26 @@ worktrees (under the workspace root), **magenta** for worktrees created
 elsewhere by other tools (e.g. `.claude/worktrees`). Piped output and
 `NO_COLOR` stay plain.
 
+## Peek — look at any revision without touching anything
+
+```sh
+wt peek origin/main      # or a tag, a sha, HEAD~3 …
+```
+
+Exports the revision's files into a **disposable fake worktree** under
+`~/worktrees/<project>/peek-…` — a plain directory with no branch, no
+checkout, and no git registration — and jumps you there. Your real worktree
+is never written to, so peeking is safe from any state: dirty, mid-rebase,
+whatever. The environment comes along (ignored files synchronously, declared
+deps in the background — `-w`, `--no-deps`, `--no-ignored` work like on
+`create`/`fork`), so the peeked code runs.
+
+It's a viewer: git commands inside it fail (there's no repo), and edits are
+throwaway. `wt peek off` jumps you back to where you came from and deletes
+the directory; `wt peek off <name>` drops one from anywhere; bare `wt peek`
+lists open peeks, which also appear in `wt ls` as red `peek` rows. If looking
+turns into working, that's what `wt fork`/`wt create` are for.
+
 ## Base branches
 
 A **base branch** is a long-lived branch (main, staging, dev, …) you promote

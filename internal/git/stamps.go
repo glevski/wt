@@ -115,25 +115,25 @@ func ReadBaseMark(worktreePath string) (string, bool) {
 	return branch, branch != ""
 }
 
-const depsStateFile = "wt-deps-state"
+// depsStatePath supports both real worktrees (state in the git admin dir)
+// and wt's fake directories like peeks, which have no .git — there the state
+// lives as a dotfile inside the directory itself.
+func depsStatePath(worktreePath string) string {
+	if dir, err := adminDir(worktreePath); err == nil {
+		return filepath.Join(dir, "wt-deps-state")
+	}
+	return filepath.Join(worktreePath, ".wt-deps-state")
+}
 
 // WriteDepsState records the deps-copy state for a worktree: "copying",
 // "done", or "failed: <reason>". Best effort.
 func WriteDepsState(worktreePath, state string) {
-	dir, err := adminDir(worktreePath)
-	if err != nil {
-		return
-	}
-	_ = os.WriteFile(filepath.Join(dir, depsStateFile), []byte(state+"\n"), 0o644)
+	_ = os.WriteFile(depsStatePath(worktreePath), []byte(state+"\n"), 0o644)
 }
 
 // DepsState returns the recorded deps-copy state, ok=false when none exists.
 func DepsState(worktreePath string) (string, bool) {
-	dir, err := adminDir(worktreePath)
-	if err != nil {
-		return "", false
-	}
-	raw, err := os.ReadFile(filepath.Join(dir, depsStateFile))
+	raw, err := os.ReadFile(depsStatePath(worktreePath))
 	if err != nil {
 		return "", false
 	}
@@ -143,11 +143,10 @@ func DepsState(worktreePath string) (string, bool) {
 
 // DepsLogPath is where the background deps worker writes its narration.
 func DepsLogPath(worktreePath string) string {
-	dir, err := adminDir(worktreePath)
-	if err != nil {
-		return os.DevNull
+	if dir, err := adminDir(worktreePath); err == nil {
+		return filepath.Join(dir, "wt-deps.log")
 	}
-	return filepath.Join(dir, "wt-deps.log")
+	return filepath.Join(worktreePath, ".wt-deps.log")
 }
 
 // CheckoutStamp reports when wt last jumped into the worktree.

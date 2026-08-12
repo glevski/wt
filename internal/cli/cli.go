@@ -33,6 +33,10 @@ Usage:
                         -b <new-branch> forks your current state into a new
                         worktree and jumps there (like git checkout -b)
   wt home               jump back to the main checkout (root repo)
+  wt peek [rev]         jump into a disposable read-only snapshot of a
+                        revision — a fake worktree with no branch or checkout;
+                        env/deps flags apply; bare = list peeks;
+                        wt peek off returns and deletes it
   wt switch             toggle between the current and last-used location,
                         like cd - (state is per shell)
   wt root <cmd> [args]  run status, checkout, create or fork in the root
@@ -144,6 +148,8 @@ func dispatch(cmd string, args []string) error {
 		return link(cwd, args)
 	case "deps":
 		return deps(cwd, args)
+	case "peek":
+		return peek(cwd, args)
 	case "complete":
 		return complete(cwd, args)
 	default:

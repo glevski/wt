@@ -1,6 +1,7 @@
 package git
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -65,5 +66,23 @@ func TestBaseRecord(t *testing.T) {
 	WriteDepsState(linked, "done")
 	if state, _ := DepsState(linked); state != "done" {
 		t.Errorf("DepsState after overwrite = %q, want done", state)
+	}
+}
+
+func TestDepsStateFallbackForPlainDirs(t *testing.T) {
+	dir := t.TempDir() // no .git anywhere — like a peek directory
+
+	if _, ok := DepsState(dir); ok {
+		t.Error("DepsState on an empty plain dir ok=true")
+	}
+	WriteDepsState(dir, "copying 123")
+	if state, ok := DepsState(dir); !ok || state != "copying 123" {
+		t.Errorf("DepsState = %q, %v", state, ok)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".wt-deps-state")); err != nil {
+		t.Error("fallback dotfile not written inside the dir")
+	}
+	if got := DepsLogPath(dir); got != filepath.Join(dir, ".wt-deps.log") {
+		t.Errorf("DepsLogPath = %q", got)
 	}
 }

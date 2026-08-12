@@ -22,6 +22,22 @@ func status(dir string, args []string) error {
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
 		return errors.New("usage: wt status [-g|--git] [worktree-name]")
 	}
+	// Inside a peek there is no repo to load — show the peek instead.
+	if root, ok := findPeekRoot(dir); ok && fs.NArg() == 0 {
+		info, _ := readPeekInfo(root)
+		fmt.Fprintf(stdout, "peek      %s\n", filepath.Base(root))
+		fmt.Fprintf(stdout, "rev       %s\n", info.Rev)
+		fmt.Fprintf(stdout, "commit    %s\n", shortSHA(info.SHA))
+		fmt.Fprintf(stdout, "source    %s\n", info.Source)
+		fmt.Fprintf(stdout, "age       %s\n", ago(info.Created))
+		if state, sok := git.DepsState(root); sok && state != "done" {
+			if strings.HasPrefix(state, "copying") {
+				state = "copying…"
+			}
+			fmt.Fprintf(stdout, "deps      %s\n", state)
+		}
+		return nil
+	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err

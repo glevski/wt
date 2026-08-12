@@ -148,6 +148,29 @@ func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
 		}
 	}
 
+	// Peek snapshots are invisible to git; show them as pseudo-rows so they
+	// can't be forgotten. Only in the unfiltered listing, sorted last.
+	if keep == nil {
+		for _, p := range findPeeks(ws.root) {
+			info, ok := readPeekInfo(p)
+			if !ok {
+				continue
+			}
+			state := "peek"
+			if s, sok := git.DepsState(p); sok && strings.HasPrefix(s, "copying") {
+				state = "syncing"
+			}
+			rows = append(rows, []string{
+				filepath.Base(p), "(peek: " + info.Rev + ")", state,
+				shortSHA(info.SHA), ago(info.Created), "-",
+			})
+			colors := make([]string, len(header))
+			colors[0] = ansiRed
+			rowColors = append(rowColors, colors)
+			markers = append(markers, " ")
+		}
+	}
+
 	widths := make([]int, len(header))
 	for c, h := range header {
 		widths[c] = len(h)
