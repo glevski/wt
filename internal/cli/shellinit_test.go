@@ -11,7 +11,7 @@ func TestShellInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	fn := out.String()
-	for _, want := range []string{"wt() {", "ch)", `cd "$_wt_dir"`} {
+	for _, want := range []string{"wt() {", "ch|create|fork)", `cd "$_wt_dir"`} {
 		if !strings.Contains(fn, want) {
 			t.Errorf("emitted function missing %q:\n%s", want, fn)
 		}

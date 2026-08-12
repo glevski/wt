@@ -44,6 +44,9 @@ otherwise from a remote (preferring `origin`), as a new tracking branch. Logs
 where the branch came from and how it relates to its upstream. Purely local:
 it never fetches; if the branch is unknown, it tells you to `git fetch` first.
 
+`create` and `fork` both take `-c`/`--checkout` to cd straight into the new
+worktree (flags go before the branch name).
+
 ```
 $ wt create feature/auth
 wt: branch 'feature/auth' found locally (origin/feature/auth: ahead 2, behind 1)

@@ -117,6 +117,20 @@ func TestForkNameTaken(t *testing.T) {
 	}
 }
 
+func TestForkCheckoutFlag(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	out, _ := setupOutputs(t)
+
+	if err := fork(repo, []string{"-c", "experiment"}); err != nil {
+		t.Fatal(err)
+	}
+	want := worktreePath(root, "proj", "experiment") + "\n"
+	if got := out.String(); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+}
+
 func TestForkUnlinkedRepo(t *testing.T) {
 	repo := gittest.NewRepo(t)
 	root := wtRoot(t)

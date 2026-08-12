@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -11,8 +12,12 @@ import (
 )
 
 func fork(dir string, args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: wt fork [new-branch]")
+	fs := flag.NewFlagSet("wt fork", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	checkout := fs.Bool("c", false, "cd into the new worktree")
+	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt fork [-c|--checkout] [new-branch]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -25,7 +30,7 @@ func fork(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
-	branch, path, err := forkName(ws, source, args)
+	branch, path, err := forkName(ws, source, fs.Args())
 	if err != nil {
 		return err
 	}
@@ -71,7 +76,7 @@ func fork(dir string, args []string) error {
 	}
 
 	logf("carried over: %d staged, %d unstaged, %d untracked file(s)", len(staged), len(unstaged), len(untracked))
-	logf("switch with: wt ch %s", filepath.Base(path))
+	reportSwitch(path, *checkout)
 	return nil
 }
 

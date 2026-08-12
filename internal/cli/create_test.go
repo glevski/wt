@@ -12,11 +12,14 @@ import (
 func TestCreateFromLocalBranch(t *testing.T) {
 	repo := linkedRepo(t)
 	root := wtRoot(t)
-	_, errOut := setupOutputs(t)
+	out, errOut := setupOutputs(t)
 	gittest.Git(t, repo, "branch", "feature/auth")
 
 	if err := create(repo, []string{"feature/auth"}); err != nil {
 		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("stdout should stay empty without -c, got %q", out.String())
 	}
 
 	path := worktreePath(root, "proj", "feature-auth")
@@ -151,6 +154,31 @@ func TestCreateNoArgsDetachedHead(t *testing.T) {
 	err := create(repo, nil)
 	if err == nil || !strings.Contains(err.Error(), "detached HEAD") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateCheckoutFlag(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	out, errOut := setupOutputs(t)
+	gittest.Git(t, repo, "branch", "feature")
+
+	if err := create(repo, []string{"-c", "feature"}); err != nil {
+		t.Fatal(err)
+	}
+	want := worktreePath(root, "proj", "feature") + "\n"
+	if got := out.String(); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+	if strings.Contains(errOut.String(), "switch with") {
+		t.Error("switch hint should be dropped when -c cd's there anyway")
+	}
+
+	if err := create(repo, []string{"--checkout"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(out.String(), worktreePath(root, "proj", "main-2")+"\n") {
+		t.Errorf("--checkout (no branch) stdout = %q", out.String())
 	}
 }
 

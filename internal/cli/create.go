@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -10,8 +12,12 @@ import (
 )
 
 func create(dir string, args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: wt create [branch]")
+	fs := flag.NewFlagSet("wt create", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	checkout := fs.Bool("c", false, "cd into the new worktree")
+	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt create [-c|--checkout] [branch]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -20,24 +26,24 @@ func create(dir string, args []string) error {
 	if !ws.linked {
 		return ws.requireLink()
 	}
-	if len(args) == 0 {
-		return createFromHead(ws)
+	if fs.NArg() == 0 {
+		return createFromHead(ws, *checkout)
 	}
-	return createForBranch(ws, args[0])
+	return createForBranch(ws, fs.Arg(0), *checkout)
 }
 
 // createForBranch adds a worktree for an existing branch: the local one when
 // it exists, otherwise a new tracking branch from a remote.
-func createForBranch(ws *workspace, branch string) error {
+func createForBranch(ws *workspace, branch string, checkout bool) error {
 	refs, err := git.LookupBranch(ws.dir(), branch)
 	if err != nil {
 		return err
 	}
 	switch {
 	case refs.Local:
-		return createFromLocal(ws, branch)
+		return createFromLocal(ws, branch, checkout)
 	case len(refs.Remotes) > 0:
-		return createFromRemote(ws, branch, refs.Remotes)
+		return createFromRemote(ws, branch, refs.Remotes, checkout)
 	default:
 		return hintf(
 			fmt.Sprintf("fetch first (git fetch), or start a new branch: wt fork %s", branch),
@@ -45,7 +51,7 @@ func createForBranch(ws *workspace, branch string) error {
 	}
 }
 
-func createFromLocal(ws *workspace, branch string) error {
+func createFromLocal(ws *workspace, branch string, checkout bool) error {
 	if wt := ws.repo.CheckedOut(branch); wt != nil {
 		return hintf("wt ch "+filepath.Base(wt.Path),
 			"branch '%s' is already checked out at %s", branch, wt.Path)
@@ -58,11 +64,11 @@ func createFromLocal(ws *workspace, branch string) error {
 		return err
 	}
 	logf("branch '%s' found locally %s", branch, upstreamNote(ws.dir(), branch))
-	reportCreated(path)
+	reportCreated(path, checkout)
 	return nil
 }
 
-func createFromRemote(ws *workspace, branch string, remotes []string) error {
+func createFromRemote(ws *workspace, branch string, remotes []string, checkout bool) error {
 	remote, err := pickRemote(branch, remotes)
 	if err != nil {
 		return err
@@ -75,13 +81,13 @@ func createFromRemote(ws *workspace, branch string, remotes []string) error {
 		return err
 	}
 	logf("branch '%s' not found locally; created from %s/%s (tracking it)", branch, remote, branch)
-	reportCreated(path)
+	reportCreated(path, checkout)
 	return nil
 }
 
 // createFromHead adds a clean worktree at the current commit on a new
 // auto-named branch; local changes stay behind (use fork to carry them).
-func createFromHead(ws *workspace) error {
+func createFromHead(ws *workspace, checkout bool) error {
 	source, err := ws.currentWorktree()
 	if err != nil {
 		return err
@@ -98,7 +104,7 @@ func createFromHead(ws *workspace) error {
 		return err
 	}
 	logf("created new branch '%s' from HEAD (%s), without your local changes", branch, shortSHA(source.Head))
-	reportCreated(path)
+	reportCreated(path, checkout)
 	return nil
 }
 
@@ -128,10 +134,19 @@ func upstreamNote(dir, branch string) string {
 	}
 }
 
-func reportCreated(path string) {
-	name := filepath.Base(path)
-	logf("created worktree '%s' at %s", name, path)
-	logf("switch with: wt ch %s", name)
+func reportCreated(path string, checkout bool) {
+	logf("created worktree '%s' at %s", filepath.Base(path), path)
+	reportSwitch(path, checkout)
+}
+
+// reportSwitch either emits the path for the wt() shell function to cd into
+// (that's all -c/--checkout is: a path on stdout), or says how to get there.
+func reportSwitch(path string, checkout bool) {
+	if checkout {
+		fmt.Fprintln(stdout, path)
+		return
+	}
+	logf("switch with: wt ch %s", filepath.Base(path))
 }
 
 func shortSHA(sha string) string {
