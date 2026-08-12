@@ -1,0 +1,103 @@
+// Package cli implements the worktree subcommands. Human-facing narration
+// goes to stderr, machine-consumable output (paths, tables, shell code) to
+// stdout — that is what lets the wt() shell wrapper capture `wt ch` safely.
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+)
+
+const usage = `worktree — fast git worktree manager (alias it to wt via "init")
+
+Usage:
+  wt create [branch]    add a worktree for an existing local or remote branch;
+                        with no argument, a clean worktree off the current HEAD
+                        on a new auto-named branch
+  wt fork [new-branch]  add a worktree off the current HEAD carrying over all
+                        staged, unstaged and untracked changes
+  wt ch <name>          jump to a worktree by name (needs the wt() shell function)
+  wt list               list this repo's worktrees
+  wt rm [-f] [-b] <name>  remove a worktree; -f discards local changes,
+                        -b also deletes its branch when merged
+  wt link [name]        link this repo to a project name (stored in git config
+                        wt.name); without an argument, show the current link
+  wt init <zsh|bash>    print the wt() shell function; add to your rc file:
+                        eval "$(worktree init zsh)"
+
+create and fork need a linked repo: worktrees are created under
+~/worktrees/<linked-name>/, overridable with $WT_ROOT or "git config wt.root".
+`
+
+// stdout/stderr are swapped out by tests.
+var (
+	stdout io.Writer = os.Stdout
+	stderr io.Writer = os.Stderr
+)
+
+// Run dispatches a command line and returns the process exit code.
+func Run(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprint(stderr, usage)
+		return 2
+	}
+	cmd, rest := args[0], args[1:]
+	if cmd == "help" || cmd == "-h" || cmd == "--help" {
+		fmt.Fprint(stdout, usage)
+		return 0
+	}
+	if err := dispatch(cmd, rest); err != nil {
+		fmt.Fprintf(stderr, "wt: %v\n", err)
+		var withHint *hintError
+		if errors.As(err, &withHint) {
+			fmt.Fprintf(stderr, "hint: %s\n", withHint.hint)
+		}
+		return 1
+	}
+	return 0
+}
+
+func dispatch(cmd string, args []string) error {
+	if cmd == "init" {
+		return shellInit(args)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	switch cmd {
+	case "create":
+		return create(cwd, args)
+	case "fork":
+		return fork(cwd, args)
+	case "ch":
+		return ch(cwd, args)
+	case "list":
+		return list(cwd, args)
+	case "rm":
+		return rm(cwd, args)
+	case "link":
+		return link(cwd, args)
+	default:
+		return fmt.Errorf("unknown command %q, see: wt help", cmd)
+	}
+}
+
+// logf prints one line of human-facing narration.
+func logf(format string, args ...any) {
+	fmt.Fprintf(stderr, "wt: "+format+"\n", args...)
+}
+
+// hintError renders as the usual "wt: <msg>" line followed by "hint: <hint>".
+type hintError struct {
+	msg  string
+	hint string
+}
+
+func (e *hintError) Error() string { return e.msg }
+
+func hintf(hint, format string, args ...any) error {
+	return &hintError{msg: fmt.Sprintf(format, args...), hint: hint}
+}
