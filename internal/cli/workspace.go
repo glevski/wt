@@ -114,6 +114,15 @@ func (ws *workspace) freeBranch(base string) (string, error) {
 	return "", fmt.Errorf("no free branch between %s-2 and %s-99", base, base)
 }
 
+// newFrom picks a fresh auto-suffixed branch off base plus the worktree path
+// for it, honoring an explicit -n name.
+func (ws *workspace) newFrom(base, nameOverride string) (branch, path string, err error) {
+	if nameOverride == "" {
+		return ws.freeName(base)
+	}
+	return ws.namedNew(base, nameOverride)
+}
+
 // namedNew pairs an auto-suffixed branch off base with an explicitly named
 // worktree directory.
 func (ws *workspace) namedNew(base, nameOverride string) (branch, path string, err error) {

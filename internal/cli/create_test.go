@@ -104,14 +104,39 @@ func TestCreateUnknownBranch(t *testing.T) {
 	}
 }
 
-func TestCreateAlreadyCheckedOut(t *testing.T) {
+func TestCreateCheckedOutBranchForksFromItsTip(t *testing.T) {
 	repo := linkedRepo(t)
-	wtRoot(t)
-	setupOutputs(t)
+	root := wtRoot(t)
+	_, errOut := setupOutputs(t)
+	mainSHA := gittest.Git(t, repo, "rev-parse", "HEAD")
 
-	err := create(repo, []string{"main"})
-	if err == nil || !strings.Contains(err.Error(), "already checked out") {
-		t.Fatalf("err = %v", err)
+	// invoke from a linked worktree whose HEAD has moved past main
+	other := filepath.Join(t.TempDir(), "other")
+	gittest.Git(t, repo, "worktree", "add", "-b", "other", other)
+	gittest.WriteFile(t, other, "o.txt", "x")
+	gittest.Commit(t, other, "diverge")
+
+	if err := create(other, []string{"main"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "main-2")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "main-2" {
+		t.Errorf("branch = %q, want main-2", got)
+	}
+	if got := gittest.Git(t, path, "rev-parse", "HEAD"); got != mainSHA {
+		t.Errorf("new branch starts at %s, want main's tip %s", got, mainSHA)
+	}
+	log := errOut.String()
+	if !strings.Contains(log, "already checked out") || !strings.Contains(log, "created new branch 'main-2' from 'main'") {
+		t.Errorf("log missing fallback explanation:\n%s", log)
+	}
+
+	// -n still applies in the fallback
+	if err := create(other, []string{"-n", "-hot", "main"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gittest.Git(t, worktreePath(root, "proj", "main-hot"), "symbolic-ref", "--short", "HEAD"); got != "main-3" {
+		t.Errorf("named fallback branch = %q, want main-3", got)
 	}
 }
 

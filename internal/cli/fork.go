@@ -109,10 +109,7 @@ func forkName(ws *workspace, source *git.Worktree, args []string, nameOverride s
 		return "", "", hintf("wt fork <name> names the new branch explicitly",
 			"detached HEAD — cannot derive a branch name")
 	}
-	if nameOverride == "" {
-		return ws.freeName(source.Branch)
-	}
-	return ws.namedNew(source.Branch, nameOverride)
+	return ws.newFrom(source.Branch, nameOverride)
 }
 
 // copyPath copies one untracked file into the new worktree, preserving

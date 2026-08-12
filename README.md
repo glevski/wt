@@ -44,6 +44,11 @@ otherwise from a remote (preferring `origin`), as a new tracking branch. Logs
 where the branch came from and how it relates to its upstream. Purely local:
 it never fetches; if the branch is unknown, it tells you to `git fetch` first.
 
+If the branch is already checked out in another worktree (git forbids checking
+one branch out twice), `create` starts a fresh auto-suffixed branch at its tip
+instead: `wt create main` while main is busy gives you branch `main-2` in a
+new worktree — with `-n` naming the directory as usual.
+
 `create` and `fork` share two flags (flags go before the branch name):
 
 - `-c`/`--checkout` — cd straight into the new worktree.
@@ -130,8 +135,8 @@ against your home directory.
 
 - Git refuses to check out one branch in two worktrees at once — that's why
   argument-less `create` and `fork` always mint a new branch, and why
-  `wt create <branch>` fails with a pointer to the worktree that already has
-  that branch.
+  `wt create <branch>` falls back to a fresh `<branch>-N` branch when the
+  branch is already checked out elsewhere.
 - A worktree is a completely normal checkout: commit, push and open PRs from
   it as usual, then `wt rm` it once merged.
 - `fork` moves state via `git stash create` + `stash apply --index` (never

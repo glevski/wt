@@ -55,8 +55,7 @@ func createForBranch(ws *workspace, branch string, checkout bool, nameOverride s
 
 func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride string) error {
 	if wt := ws.repo.CheckedOut(branch); wt != nil {
-		return hintf("wt ch "+filepath.Base(wt.Path),
-			"branch '%s' is already checked out at %s", branch, wt.Path)
+		return createBranchedFrom(ws, branch, wt, checkout, nameOverride)
 	}
 	name, err := worktreeName(branch, nameOverride)
 	if err != nil {
@@ -70,6 +69,23 @@ func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride s
 		return err
 	}
 	logf("branch '%s' found locally %s", branch, upstreamNote(ws.dir(), branch))
+	reportCreated(path, checkout)
+	return nil
+}
+
+// createBranchedFrom handles a branch that is already checked out in some
+// worktree: git forbids a second checkout of it, so start a fresh auto-named
+// branch at its tip instead.
+func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checkout bool, nameOverride string) error {
+	branch, path, err := ws.newFrom(base, nameOverride)
+	if err != nil {
+		return err
+	}
+	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, base); err != nil {
+		return err
+	}
+	logf("branch '%s' is already checked out at %s", base, holder.Path)
+	logf("created new branch '%s' from '%s' %s", branch, base, upstreamNote(ws.dir(), base))
 	reportCreated(path, checkout)
 	return nil
 }
@@ -106,12 +122,7 @@ func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
 		return hintf("wt fork <name> creates a named branch here",
 			"detached HEAD — cannot derive a branch name")
 	}
-	var branch, path string
-	if nameOverride == "" {
-		branch, path, err = ws.freeName(source.Branch)
-	} else {
-		branch, path, err = ws.namedNew(source.Branch, nameOverride)
-	}
+	branch, path, err := ws.newFrom(source.Branch, nameOverride)
 	if err != nil {
 		return err
 	}
