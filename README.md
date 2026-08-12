@@ -106,7 +106,7 @@ cannot be removed.
 
 ### `wt status`
 
-Shows where you are — project link, current worktree (with a `(main)` marker
+Shows where you are — project link, current worktree (with a `(home)` marker
 in the main checkout), its path — followed by regular `git status` output:
 
 ```

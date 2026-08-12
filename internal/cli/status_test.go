@@ -19,7 +19,7 @@ func TestStatusInMainWorktree(t *testing.T) {
 	got := out.String()
 	for _, want := range []string{
 		"project   proj",
-		"worktree  " + filepath.Base(repo) + " (main)",
+		"worktree  " + filepath.Base(repo) + " (home)",
 		"path      " + repo,
 		"On branch main",
 	} {

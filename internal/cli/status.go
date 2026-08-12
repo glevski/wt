@@ -35,7 +35,7 @@ func status(dir string, args []string) error {
 		name = worktreeColor(isMain, managed) + name + ansiReset
 	}
 	if isMain {
-		name += " (main)"
+		name += " (home)"
 	}
 	fmt.Fprintf(stdout, "project   %s\n", project)
 	fmt.Fprintf(stdout, "worktree  %s\n", name)
