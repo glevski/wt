@@ -30,6 +30,9 @@ Usage:
   wt home               jump back to the main checkout (root repo)
   wt switch             toggle between the current and last-used location,
                         like cd - (state is per shell)
+  wt root <cmd> [args]  run status, checkout, create or fork in the root
+                        repo's context, e.g. wt root fork -c forks the root's
+                        current state from wherever you stand
   wt list               list this repo's worktrees (alias: ls)
   wt status [name]      show a worktree (default: the current one) — project
                         link, worktree and path; -g/--git appends git status
@@ -99,6 +102,8 @@ func dispatch(cmd string, args []string) error {
 		return checkout(cwd, args)
 	case "home":
 		return home(cwd, args)
+	case "root":
+		return root(cwd, args)
 	case "list", "ls":
 		return list(cwd, args)
 	case "status":

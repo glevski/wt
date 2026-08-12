@@ -111,6 +111,19 @@ on that branch and jumps there — shorthand for `wt fork -c <new-branch>`.
 Jumps back to the main checkout (the root repo), from wherever you are —
 no name needed.
 
+### `wt root <cmd>` — root mode
+
+Runs a command in the **root repo's context** from wherever you stand:
+
+- `wt root status [-g]` — the root's status, as if run there
+- `wt root checkout` — jump to the root (same as `wt home`); with a name or
+  `-b` it behaves like `checkout` run at the root
+- `wt root create …` — create based on the root's current branch
+- `wt root fork [-c] …` — fork the root's current state (its branch, its
+  staged/unstaged/untracked changes), even while you're in another worktree
+
+All flags pass through unchanged (`wt root fork -c -n -exp`, …).
+
 ### `wt switch`
 
 Toggles between where you are and where your last wt jump left from — like
