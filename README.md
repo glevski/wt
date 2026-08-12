@@ -118,6 +118,17 @@ Toggles between where you are and where your last wt jump left from — like
 variable inside the `wt()` function, so every terminal has its own,
 independent toggle state.
 
+### `wt reset [--hard] [base]`
+
+Only inside a worktree (never the main checkout). Moves the worktree's branch
+back to the tip of its **base branch** — the branch it was created from,
+recorded automatically by `create`/`fork` (`main-2` remembers `main`;
+remote-created worktrees remember `origin/<branch>`) — while staying on the
+same branch. Any local changes block it; `--hard` proceeds, discarding tracked
+changes (untracked files are kept, standard `git reset --hard` semantics).
+Worktrees created before this feature (or by other tools) have no recording —
+name the base explicitly: `wt reset <branch>` always works and overrides.
+
 ### `wt remove [-f] [-b] <name>` (alias: `rm`)
 
 Removes a worktree by name (prefix matching like `ch`). Refuses when the

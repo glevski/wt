@@ -35,6 +35,9 @@ Usage:
                         -g/--git appends regular git status output
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
                         -b also deletes its branch when merged (alias: rm)
+  wt reset [--hard] [base]  move the worktree's branch back to its base
+                        branch's tip (recorded at creation), staying on the
+                        branch; refuses with local changes unless --hard
   wt link [name]        link this repo to a project name (stored in git config
                         wt.name); without an argument, show the current link
   wt init <zsh|bash>    print the wt() shell function; add to your rc file:
@@ -101,6 +104,8 @@ func dispatch(cmd string, args []string) error {
 		return status(cwd, args)
 	case "remove", "rm":
 		return remove(cwd, args)
+	case "reset":
+		return reset(cwd, args)
 	case "link":
 		return link(cwd, args)
 	default:

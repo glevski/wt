@@ -62,6 +62,32 @@ func TouchCheckoutStamp(worktreePath string) {
 	}
 }
 
+const baseFile = "wt-base"
+
+// WriteBase records the branch a worktree was created from. Best effort —
+// a reset without it just needs an explicit branch argument.
+func WriteBase(worktreePath, base string) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(dir, baseFile), []byte(base+"\n"), 0o644)
+}
+
+// BaseBranch returns the recorded base branch, ok=false when none was recorded.
+func BaseBranch(worktreePath string) (string, bool) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return "", false
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, baseFile))
+	if err != nil {
+		return "", false
+	}
+	base := strings.TrimSpace(string(raw))
+	return base, base != ""
+}
+
 // CheckoutStamp reports when wt last jumped into the worktree.
 func CheckoutStamp(worktreePath string) (time.Time, bool) {
 	dir, err := adminDir(worktreePath)

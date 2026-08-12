@@ -84,6 +84,7 @@ func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checko
 	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, base); err != nil {
 		return err
 	}
+	git.WriteBase(path, base)
 	logf("branch '%s' is already checked out at %s", base, holder.Path)
 	logf("created new branch '%s' from '%s' %s", branch, base, upstreamNote(ws.dir(), base))
 	reportCreated(ws, path, checkout)
@@ -106,6 +107,7 @@ func createFromRemote(ws *workspace, branch string, remotes []string, checkout b
 	if _, err := git.Run(ws.dir(), "worktree", "add", "--track", "-b", branch, path, remote+"/"+branch); err != nil {
 		return err
 	}
+	git.WriteBase(path, remote+"/"+branch)
 	logf("branch '%s' not found locally; created from %s/%s (tracking it)", branch, remote, branch)
 	reportCreated(ws, path, checkout)
 	return nil
@@ -129,6 +131,7 @@ func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
 	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, "HEAD"); err != nil {
 		return err
 	}
+	git.WriteBase(path, source.Branch)
 	logf("created new branch '%s' from HEAD (%s), without your local changes", branch, shortSHA(source.Head))
 	reportCreated(ws, path, checkout)
 	return nil

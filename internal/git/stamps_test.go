@@ -33,3 +33,17 @@ func TestStamps(t *testing.T) {
 		t.Error("CheckoutStamp for the main worktree should work too")
 	}
 }
+
+func TestBaseRecord(t *testing.T) {
+	repo := gittest.NewRepo(t)
+	linked := filepath.Join(t.TempDir(), "linked")
+	gittest.Git(t, repo, "worktree", "add", "-b", "side", linked)
+
+	if _, ok := BaseBranch(linked); ok {
+		t.Error("BaseBranch before any write ok=true, want false")
+	}
+	WriteBase(linked, "main")
+	if base, ok := BaseBranch(linked); !ok || base != "main" {
+		t.Errorf("BaseBranch = %q, %v; want main, true", base, ok)
+	}
+}

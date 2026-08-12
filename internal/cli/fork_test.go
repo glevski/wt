@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"wt/internal/git"
 	"wt/internal/gittest"
 )
 
@@ -137,6 +138,9 @@ func TestForkExistingBranchBasesOffItsTip(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), "branch 'main' already exists; created new branch 'main-2'") {
 		t.Errorf("log missing base explanation:\n%s", errOut.String())
+	}
+	if base, ok := git.BaseBranch(path); !ok || base != "main" {
+		t.Errorf("recorded base = %q, %v; want main", base, ok)
 	}
 }
 

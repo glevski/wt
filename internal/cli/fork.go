@@ -65,6 +65,11 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, base); err != nil {
 		return err
 	}
+	if base != "HEAD" {
+		git.WriteBase(path, base)
+	} else if source.Branch != "" {
+		git.WriteBase(path, source.Branch)
+	}
 	if base == "HEAD" {
 		logf("created new branch '%s' from HEAD (%s)", branch, shortSHA(source.Head))
 	} else {

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"wt/internal/git"
 	"wt/internal/gittest"
 )
 
@@ -25,6 +26,9 @@ func TestCreateFromLocalBranch(t *testing.T) {
 	path := worktreePath(root, "proj", "feature-auth")
 	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "feature/auth" {
 		t.Errorf("worktree branch = %q, want feature/auth", got)
+	}
+	if base, ok := git.BaseBranch(path); ok {
+		t.Errorf("direct-branch worktree recorded base %q, want none", base)
 	}
 	log := errOut.String()
 	if !strings.Contains(log, "found locally") || !strings.Contains(log, "(no upstream)") {
@@ -84,6 +88,9 @@ func TestCreateFromRemoteOnlyBranch(t *testing.T) {
 	path := worktreePath(root, "proj", "hotfix")
 	if got := gittest.Git(t, path, "rev-parse", "--abbrev-ref", "hotfix@{upstream}"); got != "origin/hotfix" {
 		t.Errorf("upstream = %q, want origin/hotfix", got)
+	}
+	if base, ok := git.BaseBranch(path); !ok || base != "origin/hotfix" {
+		t.Errorf("recorded base = %q, %v; want origin/hotfix", base, ok)
 	}
 	if log := errOut.String(); !strings.Contains(log, "created from origin/hotfix") {
 		t.Errorf("log missing remote source:\n%s", log)
@@ -154,6 +161,9 @@ func TestCreateNoArgs(t *testing.T) {
 	path := worktreePath(root, "proj", "main-2")
 	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "main-2" {
 		t.Errorf("branch = %q, want main-2", got)
+	}
+	if base, ok := git.BaseBranch(path); !ok || base != "main" {
+		t.Errorf("recorded base = %q, %v; want main", base, ok)
 	}
 	if status := gittest.Git(t, path, "status", "--porcelain"); status != "" {
 		t.Errorf("new worktree is not clean:\n%s", status)
