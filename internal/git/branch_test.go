@@ -62,6 +62,25 @@ func TestUpstreamOf(t *testing.T) {
 	}
 }
 
+func TestBranches(t *testing.T) {
+	repo := gittest.NewRepo(t)
+	gittest.AddRemote(t, repo)
+	gittest.Git(t, repo, "branch", "extra")
+	gittest.Git(t, repo, "push", "origin", "main:remote-only")
+	gittest.Git(t, repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+	locals, remotes, err := Branches(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"extra", "main"}; !reflect.DeepEqual(locals, want) {
+		t.Errorf("locals = %v, want %v", locals, want)
+	}
+	if want := []string{"main", "remote-only"}; !reflect.DeepEqual(remotes, want) {
+		t.Errorf("remotes = %v, want %v (HEAD excluded, prefix stripped)", remotes, want)
+	}
+}
+
 func TestLocalBranches(t *testing.T) {
 	repo := gittest.NewRepo(t)
 	gittest.Git(t, repo, "branch", "main-2")

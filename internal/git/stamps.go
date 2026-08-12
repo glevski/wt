@@ -115,6 +115,41 @@ func ReadBaseMark(worktreePath string) (string, bool) {
 	return branch, branch != ""
 }
 
+const depsStateFile = "wt-deps-state"
+
+// WriteDepsState records the deps-copy state for a worktree: "copying",
+// "done", or "failed: <reason>". Best effort.
+func WriteDepsState(worktreePath, state string) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(dir, depsStateFile), []byte(state+"\n"), 0o644)
+}
+
+// DepsState returns the recorded deps-copy state, ok=false when none exists.
+func DepsState(worktreePath string) (string, bool) {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return "", false
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, depsStateFile))
+	if err != nil {
+		return "", false
+	}
+	state := strings.TrimSpace(string(raw))
+	return state, state != ""
+}
+
+// DepsLogPath is where the background deps worker writes its narration.
+func DepsLogPath(worktreePath string) string {
+	dir, err := adminDir(worktreePath)
+	if err != nil {
+		return os.DevNull
+	}
+	return filepath.Join(dir, "wt-deps.log")
+}
+
 // CheckoutStamp reports when wt last jumped into the worktree.
 func CheckoutStamp(worktreePath string) (time.Time, bool) {
 	dir, err := adminDir(worktreePath)

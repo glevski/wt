@@ -9,6 +9,16 @@ import (
 	"wt/internal/git"
 )
 
+// Deps returns the declared dependency paths (`git config --get-all wt.deps`)
+// that create/fork copy asynchronously into new worktrees.
+func Deps(repoDir string) []string {
+	out, err := git.Run(repoDir, "config", "--get-all", "wt.deps")
+	if err != nil || out == "" {
+		return nil
+	}
+	return strings.Split(out, "\n")
+}
+
 // CopyIgnored reports whether create/fork should copy git-ignored files
 // (.env, node_modules, …) into new worktrees so they are runnable
 // immediately. Default true; disable with `git config wt.copyignored false`.

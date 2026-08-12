@@ -18,8 +18,9 @@ func create(dir string, args []string) error {
 	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
 	name := fs.String("n", "", "worktree directory name")
 	fs.StringVar(name, "name", "", "worktree directory name")
+	env := envFlags(fs)
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
-		return errors.New("usage: wt create [-c|--checkout] [-n|--name <name>] [branch]")
+		return errors.New("usage: wt create [-c] [-n name] [-w] [--no-deps] [--no-ignored] [branch]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -29,23 +30,35 @@ func create(dir string, args []string) error {
 		return ws.requireLink()
 	}
 	if fs.NArg() == 0 {
-		return createFromHead(ws, *checkout, *name)
+		return createFromHead(ws, *checkout, *name, env())
 	}
-	return createForBranch(ws, fs.Arg(0), *checkout, *name)
+	return createForBranch(ws, fs.Arg(0), *checkout, *name, env())
+}
+
+// envFlags registers the environment-copy flags shared by create and fork;
+// the returned closure reads them after Parse.
+func envFlags(fs *flag.FlagSet) func() envOptions {
+	noIgnored := fs.Bool("no-ignored", false, "copy no ignored files and no deps")
+	noDeps := fs.Bool("no-deps", false, "copy ignored files but skip deps")
+	wait := fs.Bool("w", false, "copy deps synchronously")
+	fs.BoolVar(wait, "wait", false, "copy deps synchronously")
+	return func() envOptions {
+		return envOptions{noIgnored: *noIgnored, noDeps: *noDeps, wait: *wait}
+	}
 }
 
 // createForBranch adds a worktree for an existing branch: the local one when
 // it exists, otherwise a new tracking branch from a remote.
-func createForBranch(ws *workspace, branch string, checkout bool, nameOverride string) error {
+func createForBranch(ws *workspace, branch string, checkout bool, nameOverride string, env envOptions) error {
 	refs, err := git.LookupBranch(ws.dir(), branch)
 	if err != nil {
 		return err
 	}
 	switch {
 	case refs.Local:
-		return createFromLocal(ws, branch, checkout, nameOverride)
+		return createFromLocal(ws, branch, checkout, nameOverride, env)
 	case len(refs.Remotes) > 0:
-		return createFromRemote(ws, branch, refs.Remotes, checkout, nameOverride)
+		return createFromRemote(ws, branch, refs.Remotes, checkout, nameOverride, env)
 	default:
 		return hintf(
 			fmt.Sprintf("fetch first (git fetch), or start a new branch: wt fork %s", branch),
@@ -53,9 +66,9 @@ func createForBranch(ws *workspace, branch string, checkout bool, nameOverride s
 	}
 }
 
-func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride string) error {
+func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride string, env envOptions) error {
 	if wt := ws.repo.CheckedOut(branch); wt != nil {
-		return createBranchedFrom(ws, branch, wt, checkout, nameOverride)
+		return createBranchedFrom(ws, branch, wt, checkout, nameOverride, env)
 	}
 	name, err := worktreeName(branch, nameOverride)
 	if err != nil {
@@ -69,7 +82,7 @@ func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride s
 		return err
 	}
 	logf("branch '%s' found locally %s", branch, upstreamNote(ws.dir(), branch))
-	copyEnvironment(ws, path)
+	copyEnvironment(ws, path, env)
 	reportCreated(ws, path, checkout)
 	return nil
 }
@@ -77,7 +90,7 @@ func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride s
 // createBranchedFrom handles a branch that is already checked out in some
 // worktree: git forbids a second checkout of it, so start a fresh auto-named
 // branch at its tip instead.
-func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checkout bool, nameOverride string) error {
+func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checkout bool, nameOverride string, env envOptions) error {
 	branch, path, err := ws.newFrom(base, nameOverride)
 	if err != nil {
 		return err
@@ -88,12 +101,12 @@ func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checko
 	git.WriteBase(path, base)
 	logf("branch '%s' is already checked out at %s", base, holder.Path)
 	logf("created new branch '%s' from '%s' %s", branch, base, upstreamNote(ws.dir(), base))
-	copyEnvironment(ws, path)
+	copyEnvironment(ws, path, env)
 	reportCreated(ws, path, checkout)
 	return nil
 }
 
-func createFromRemote(ws *workspace, branch string, remotes []string, checkout bool, nameOverride string) error {
+func createFromRemote(ws *workspace, branch string, remotes []string, checkout bool, nameOverride string, env envOptions) error {
 	remote, err := pickRemote(branch, remotes)
 	if err != nil {
 		return err
@@ -111,14 +124,14 @@ func createFromRemote(ws *workspace, branch string, remotes []string, checkout b
 	}
 	git.WriteBase(path, remote+"/"+branch)
 	logf("branch '%s' not found locally; created from %s/%s (tracking it)", branch, remote, branch)
-	copyEnvironment(ws, path)
+	copyEnvironment(ws, path, env)
 	reportCreated(ws, path, checkout)
 	return nil
 }
 
 // createFromHead adds a clean worktree at the current commit on a new
 // auto-named branch; local changes stay behind (use fork to carry them).
-func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
+func createFromHead(ws *workspace, checkout bool, nameOverride string, env envOptions) error {
 	source, err := ws.currentWorktree()
 	if err != nil {
 		return err
@@ -136,7 +149,7 @@ func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
 	}
 	git.WriteBase(path, source.Branch)
 	logf("created new branch '%s' from HEAD (%s), without your local changes", branch, shortSHA(source.Head))
-	copyEnvironment(ws, path)
+	copyEnvironment(ws, path, env)
 	reportCreated(ws, path, checkout)
 	return nil
 }

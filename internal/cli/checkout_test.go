@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"wt/internal/git"
 	"wt/internal/gittest"
+	"wt/internal/tui"
 )
 
 func checkoutFixture(t *testing.T) (repo, authPath, fixPath string) {
@@ -118,5 +120,80 @@ func TestCheckoutMainWorktreeByRepoName(t *testing.T) {
 	}
 	if got, want := out.String(), jumpScript(repo, repo); got != want {
 		t.Errorf("stdout = %q, want %q", got, want)
+	}
+}
+
+// swapPick replaces the interactive picker for one test.
+func swapPick(t *testing.T, fake func(title string, items []string) (int, error)) {
+	t.Helper()
+	orig := pick
+	pick = fake
+	t.Cleanup(func() { pick = orig })
+}
+
+func TestCheckoutInteractive(t *testing.T) {
+	repo, authPath, fixPath := checkoutFixture(t)
+	git.TouchCheckoutStamp(fixPath) // stamped → most recent, ahead of created-only auth
+	out, _ := setupOutputs(t)
+
+	var seen []string
+	swapPick(t, func(title string, items []string) (int, error) {
+		seen = items
+		return 1, nil
+	})
+
+	if err := checkout(repo, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 {
+		t.Fatalf("picker got %d items, want 2 (current worktree excluded): %v", len(seen), seen)
+	}
+	if !strings.HasPrefix(seen[0], "feature-fix") || !strings.Contains(seen[0], "feature/fix") {
+		t.Errorf("first item = %q, want stamped feature-fix with its branch", seen[0])
+	}
+	if got, want := out.String(), jumpScript(authPath, repo); got != want {
+		t.Errorf("stdout = %q, want %q (picked index 1)", got, want)
+	}
+}
+
+func TestCheckoutInteractiveCancel(t *testing.T) {
+	repo, _, _ := checkoutFixture(t)
+	out, _ := setupOutputs(t)
+	swapPick(t, func(string, []string) (int, error) { return 0, tui.ErrCanceled })
+
+	if err := checkout(repo, nil); err == nil {
+		t.Fatal("expected an error on cancel")
+	}
+	if out.Len() != 0 {
+		t.Errorf("stdout not empty on cancel: %q", out.String())
+	}
+}
+
+func TestCheckoutInteractiveNoTTY(t *testing.T) {
+	repo, _, _ := checkoutFixture(t)
+	out, _ := setupOutputs(t)
+	swapPick(t, func(string, []string) (int, error) { return 0, tui.ErrNoTTY })
+
+	err := checkout(repo, nil)
+	if err == nil || !strings.Contains(err.Error(), "needs a terminal") {
+		t.Fatalf("err = %v", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("stdout not empty: %q", out.String())
+	}
+}
+
+func TestCheckoutInteractiveNoOtherWorktree(t *testing.T) {
+	repo := gittest.NewRepo(t)
+	wtRoot(t)
+	setupOutputs(t)
+	swapPick(t, func(string, []string) (int, error) {
+		t.Fatal("picker must not open with nothing to pick")
+		return 0, nil
+	})
+
+	err := checkout(repo, nil)
+	if err == nil || !strings.Contains(err.Error(), "no other worktree") {
+		t.Fatalf("err = %v", err)
 	}
 }

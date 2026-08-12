@@ -54,4 +54,16 @@ func TestBaseRecord(t *testing.T) {
 	if branch, ok := ReadBaseMark(linked); !ok || branch != "side" {
 		t.Errorf("ReadBaseMark = %q, %v; want side, true", branch, ok)
 	}
+
+	if _, ok := DepsState(linked); ok {
+		t.Error("DepsState before any write ok=true, want false")
+	}
+	WriteDepsState(linked, "copying")
+	if state, ok := DepsState(linked); !ok || state != "copying" {
+		t.Errorf("DepsState = %q, %v; want copying, true", state, ok)
+	}
+	WriteDepsState(linked, "done")
+	if state, _ := DepsState(linked); state != "done" {
+		t.Errorf("DepsState after overwrite = %q, want done", state)
+	}
 }

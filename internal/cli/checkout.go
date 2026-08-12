@@ -11,12 +11,14 @@ import (
 	"wt/internal/git"
 )
 
-const checkoutUsage = "usage: wt checkout <worktree-name> | wt checkout -b <new-branch>"
+const checkoutUsage = "usage: wt checkout [worktree-name] | wt checkout -b <new-branch>"
 
 // checkout prints the chosen worktree's absolute path on stdout; the wt()
 // shell function turns that into a cd. Nothing to check out in git terms —
 // every worktree has its branch permanently checked out. With -b it behaves
 // like `git checkout -b`: fork the current state into a new branch and jump.
+// With no argument it opens an interactive picker of the most recently used
+// worktrees.
 func checkout(dir string, args []string) error {
 	fs := flag.NewFlagSet("wt checkout", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -28,16 +30,21 @@ func checkout(dir string, args []string) error {
 		if fs.NArg() != 0 {
 			return errors.New(checkoutUsage)
 		}
-		return forkRun(dir, []string{*newBranch}, "", true)
+		return forkRun(dir, []string{*newBranch}, "", true, envOptions{})
 	}
-	if fs.NArg() != 1 {
+	if fs.NArg() > 1 {
 		return errors.New(checkoutUsage)
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
 	}
-	wt, err := matchWorktree(ws.repo.Worktrees, fs.Arg(0))
+	var wt *git.Worktree
+	if fs.NArg() == 1 {
+		wt, err = matchWorktree(ws.repo.Worktrees, fs.Arg(0))
+	} else {
+		wt, err = pickWorktree(ws)
+	}
 	if err != nil {
 		return err
 	}

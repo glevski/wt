@@ -64,3 +64,27 @@ func LocalBranches(dir, pattern string) ([]string, error) {
 	}
 	return strings.Split(out, "\n"), nil
 }
+
+// Branches returns all local branch names and, separately, the deduplicated
+// short names of remote branches (remote prefix stripped, symbolic HEAD
+// entries dropped) — one git call, for completion.
+func Branches(dir string) (locals, remotes []string, err error) {
+	out, err := Run(dir, "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes")
+	if err != nil || out == "" {
+		return nil, nil, err
+	}
+	seenRemote := make(map[string]bool)
+	for _, ref := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(ref, "refs/heads/"):
+			locals = append(locals, strings.TrimPrefix(ref, "refs/heads/"))
+		case strings.HasPrefix(ref, "refs/remotes/"):
+			_, name, ok := strings.Cut(strings.TrimPrefix(ref, "refs/remotes/"), "/")
+			if ok && name != "HEAD" && !seenRemote[name] {
+				seenRemote[name] = true
+				remotes = append(remotes, name)
+			}
+		}
+	}
+	return locals, remotes, nil
+}

@@ -24,9 +24,12 @@ Usage:
                         with an auto-named new branch
                         Flags on both: -c/--checkout cd into the new worktree;
                         -n/--name set its directory name, where a leading dash
-                        appends to the branch (-n -fix → <branch>-fix)
-  wt checkout <name>    jump to a worktree by name, unique prefixes work
-                        (alias: ch; needs the wt() shell function);
+                        appends to the branch (-n -fix → <branch>-fix);
+                        -w/--wait copy deps synchronously; --no-deps skip
+                        deps; --no-ignored copy no ignored files at all
+  wt checkout [name]    jump to a worktree by name, unique prefixes work
+                        (alias: ch; needs the wt() shell function); with no
+                        name, pick from the most recent ones with arrow keys;
                         -b <new-branch> forks your current state into a new
                         worktree and jumps there (like git checkout -b)
   wt home               jump back to the main checkout (root repo)
@@ -53,8 +56,11 @@ Usage:
                         branch; refuses with local changes unless --hard
   wt link [name]        link this repo to a project name (stored in git config
                         wt.name); without an argument, show the current link
-  wt init <zsh|bash>    print the wt() shell function; add to your rc file:
-                        eval "$(worktree init zsh)"
+  wt deps [cmd]         manage dependency paths (node_modules, …) copied into
+                        new worktrees in the background: add <path>, rm <path>,
+                        list (default), sync [name] (re-copy, foreground)
+  wt init <zsh|bash>    print the wt() shell function and tab completion;
+                        add to your rc file: eval "$(worktree init zsh)"
 
 create and fork need a linked repo: worktrees are created under
 ~/worktrees/<linked-name>/, overridable with $WT_ROOT or "git config wt.root".
@@ -106,6 +112,9 @@ func dispatch(cmd string, args []string) error {
 	if cmd == "switch" {
 		return switchTo(args)
 	}
+	if cmd == "__deps-worker" {
+		return depsWorker(args)
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -133,6 +142,10 @@ func dispatch(cmd string, args []string) error {
 		return reset(cwd, args)
 	case "link":
 		return link(cwd, args)
+	case "deps":
+		return deps(cwd, args)
+	case "complete":
+		return complete(cwd, args)
 	default:
 		return fmt.Errorf("unknown command %q, see: wt help", cmd)
 	}

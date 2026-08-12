@@ -49,6 +49,9 @@ func remove(dir string, args []string) error {
 	if cur := ws.repo.Current(); cur != nil && cur.Path == wt.Path {
 		return hintf("wt ch "+ws.repo.Name+" first", "you are inside '%s'", name)
 	}
+	if state, ok := git.DepsState(wt.Path); ok && state == "copying" && !*force {
+		return hintf("wait for it, or discard with: wt rm -f "+name, "'%s' is still syncing deps", name)
+	}
 	return removeWorktree(ws, wt, *force, *deleteBranch)
 }
 
@@ -79,6 +82,10 @@ func removeMatching(ws *workspace, pattern string, force, deleteBranch bool) err
 		}
 		if current != nil && wt.Path == current.Path {
 			logf("skipping '%s' — you are inside it", name)
+			continue
+		}
+		if state, ok := git.DepsState(wt.Path); ok && state == "copying" && !force {
+			logf("skipping '%s' — deps still syncing", name)
 			continue
 		}
 		candidates = append(candidates, wt)

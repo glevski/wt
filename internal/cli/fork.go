@@ -18,14 +18,15 @@ func fork(dir string, args []string) error {
 	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
 	name := fs.String("n", "", "worktree directory name")
 	fs.StringVar(name, "name", "", "worktree directory name")
+	env := envFlags(fs)
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
-		return errors.New("usage: wt fork [-c|--checkout] [-n|--name <name>] [new-branch]")
+		return errors.New("usage: wt fork [-c] [-n name] [-w] [--no-deps] [--no-ignored] [new-branch]")
 	}
-	return forkRun(dir, fs.Args(), *name, *checkout)
+	return forkRun(dir, fs.Args(), *name, *checkout, env())
 }
 
 // forkRun is the fork engine; `wt checkout -b` delegates here too.
-func forkRun(dir string, args []string, nameOverride string, checkout bool) error {
+func forkRun(dir string, args []string, nameOverride string, checkout bool, env envOptions) error {
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 	}
 
 	logf("carried over: %d staged, %d unstaged, %d untracked file(s)", len(staged), len(unstaged), len(untracked))
-	copyEnvironment(ws, path)
+	copyEnvironment(ws, path, env)
 	reportSwitch(ws, path, checkout)
 	return nil
 }

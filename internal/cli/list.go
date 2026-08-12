@@ -107,6 +107,11 @@ func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
 		}(i, e.wt.Path)
 	}
 	wg.Wait()
+	for i, e := range entries {
+		if state, ok := git.DepsState(e.wt.Path); ok && state == "copying" {
+			states[i] = "syncing"
+		}
+	}
 
 	current := ws.repo.Current()
 	header := []string{"NAME", "BRANCH", "STATE", "COMMIT", "CREATED", "CHECKOUT"}

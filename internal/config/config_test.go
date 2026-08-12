@@ -8,6 +8,19 @@ import (
 	"wt/internal/gittest"
 )
 
+func TestDeps(t *testing.T) {
+	repo := gittest.NewRepo(t)
+
+	if got := Deps(repo); got != nil {
+		t.Errorf("Deps on fresh repo = %v, want nil", got)
+	}
+	gittest.Git(t, repo, "config", "--add", "wt.deps", "node_modules")
+	gittest.Git(t, repo, "config", "--add", "wt.deps", ".venv")
+	if got := Deps(repo); len(got) != 2 || got[0] != "node_modules" || got[1] != ".venv" {
+		t.Errorf("Deps = %v", got)
+	}
+}
+
 func TestCopyIgnored(t *testing.T) {
 	repo := gittest.NewRepo(t)
 

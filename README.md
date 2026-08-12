@@ -74,6 +74,29 @@ Both commands also copy **git-ignored** files (`.env`, `node_modules`, …)
 from the worktree you run them in, so new worktrees are runnable without
 reinstalling anything. Turn it off with `git config wt.copyignored false`.
 
+#### Deps — big dependencies, copied in the background
+
+Declare heavy ignored paths as **deps** and they stop blocking your jumps:
+
+```sh
+wt deps add node_modules
+```
+
+On `create`/`fork`, deps are copied by a detached background worker — you're
+already cd'ed into the new worktree while `node_modules` streams in. Each dep
+is built in a `.wt-partial` sibling and renamed into place, so a half-copied
+directory never appears at its real path. `wt list` shows `syncing` while it
+runs and `wt status` a `deps` line (with the log path); the small remaining
+ignored files still copy synchronously before the jump.
+
+- `-w`/`--wait` — copy deps synchronously (block until done)
+- `--no-deps` — skip deps for this run, still copy other ignored files
+- `--no-ignored` — copy nothing at all (no ignored files, no deps)
+- `wt deps [list | add <path> | rm <path> | sync [name]]` — manage the list
+  (stored as multi-valued `git config wt.deps`); `sync` re-copies deps into a
+  worktree in the foreground — recovery after a failed background copy, or
+  onboarding a worktree created before deps were declared.
+
 ```
 $ wt create feature/auth
 wt: branch 'feature/auth' found locally (origin/feature/auth: ahead 2, behind 1)
