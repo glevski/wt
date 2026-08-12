@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"wt/internal/git"
 )
@@ -27,8 +28,13 @@ func status(dir string, args []string) error {
 	if !ws.linked {
 		project = "(not linked — run: wt link <name>)"
 	}
+	isMain := current.Path == ws.repo.Worktrees[0].Path
 	name := filepath.Base(current.Path)
-	if current.Path == ws.repo.Worktrees[0].Path {
+	if colorEnabled() {
+		managed := strings.HasPrefix(current.Path, ws.root+"/")
+		name = worktreeColor(isMain, managed) + name + ansiReset
+	}
+	if isMain {
 		name += " (main)"
 	}
 	fmt.Fprintf(stdout, "project   %s\n", project)

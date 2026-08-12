@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	ansiBlue    = "\x1b[34m"
+	ansiCyan    = "\x1b[36m"
 	ansiMagenta = "\x1b[35m"
 	ansiGreen   = "\x1b[32m"
 	ansiReset   = "\x1b[0m"
@@ -109,13 +109,13 @@ func list(dir string, args []string) error {
 	return nil
 }
 
-// worktreeColor picks the NAME color: blue for the main checkout, green for
+// worktreeColor picks the NAME color: cyan for the main checkout, green for
 // wt-managed worktrees (under the workspace root), magenta for worktrees
 // created elsewhere by other tools.
 func worktreeColor(main, managed bool) string {
 	switch {
 	case main:
-		return ansiBlue
+		return ansiCyan
 	case managed:
 		return ansiGreen
 	default:

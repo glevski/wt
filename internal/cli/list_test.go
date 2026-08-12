@@ -54,8 +54,8 @@ func TestList(t *testing.T) {
 }
 
 func TestWorktreeColor(t *testing.T) {
-	if got := worktreeColor(true, false); got != ansiBlue {
-		t.Errorf("main = %q, want blue", got)
+	if got := worktreeColor(true, false); got != ansiCyan {
+		t.Errorf("main = %q, want cyan", got)
 	}
 	if got := worktreeColor(false, true); got != ansiGreen {
 		t.Errorf("managed = %q, want green", got)
