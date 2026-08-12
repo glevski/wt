@@ -19,9 +19,10 @@ Usage:
   wt fork [new-branch]  add a worktree off the current HEAD carrying over all
                         staged, unstaged and untracked changes
   wt ch <name>          jump to a worktree by name (needs the wt() shell function)
-  wt list               list this repo's worktrees
-  wt rm [-f] [-b] <name>  remove a worktree; -f discards local changes,
-                        -b also deletes its branch when merged
+  wt list               list this repo's worktrees (alias: ls)
+  wt status             show project link, current worktree and git status
+  wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
+                        -b also deletes its branch when merged (alias: rm)
   wt link [name]        link this repo to a project name (stored in git config
                         wt.name); without an argument, show the current link
   wt init <zsh|bash>    print the wt() shell function; add to your rc file:
@@ -74,10 +75,12 @@ func dispatch(cmd string, args []string) error {
 		return fork(cwd, args)
 	case "ch":
 		return ch(cwd, args)
-	case "list":
+	case "list", "ls":
 		return list(cwd, args)
-	case "rm":
-		return rm(cwd, args)
+	case "status":
+		return status(cwd, args)
+	case "remove", "rm":
+		return remove(cwd, args)
 	case "link":
 		return link(cwd, args)
 	default:

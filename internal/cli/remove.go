@@ -10,16 +10,16 @@ import (
 	"wt/internal/git"
 )
 
-const rmUsage = "usage: wt rm [-f] [-b] <worktree-name>"
+const removeUsage = "usage: wt remove [-f] [-b] <worktree-name>"
 
-// rm removes a worktree; the branch stays unless -b asks for a safe delete.
-func rm(dir string, args []string) error {
-	fs := flag.NewFlagSet("wt rm", flag.ContinueOnError)
+// remove deletes a worktree; the branch stays unless -b asks for a safe delete.
+func remove(dir string, args []string) error {
+	fs := flag.NewFlagSet("wt remove", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	force := fs.Bool("f", false, "remove even when the worktree is dirty")
 	deleteBranch := fs.Bool("b", false, "also delete the branch (git branch -d)")
 	if err := fs.Parse(args); err != nil || len(fs.Args()) != 1 {
-		return errors.New(rmUsage)
+		return errors.New(removeUsage)
 	}
 
 	ws, err := loadWorkspace(dir)

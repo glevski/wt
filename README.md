@@ -78,7 +78,7 @@ Jumps (cd's) to a worktree by its directory name; unique prefixes work too.
 The repo name itself takes you back to the main checkout. No git state changes
 hands here — every worktree permanently has its branch checked out.
 
-### `wt rm [-f] [-b] <name>`
+### `wt remove [-f] [-b] <name>` (alias: `rm`)
 
 Removes a worktree by name (prefix matching like `ch`). Refuses when the
 worktree has local changes unless `-f` discards them. The branch is kept by
@@ -86,7 +86,22 @@ default; `-b` deletes it too — safely (`git branch -d`), so an unmerged branch
 survives with a hint. The main checkout and the worktree you are standing in
 cannot be removed.
 
-### `wt list`
+### `wt status`
+
+Shows where you are — project link, current worktree (with a `(main)` marker
+in the main checkout), its path — followed by regular `git status` output:
+
+```
+$ wt status
+project   devbox
+worktree  main-2
+path      /home/dev/worktrees/devbox/main-2
+
+On branch main-2
+nothing to commit, working tree clean
+```
+
+### `wt list` (alias: `ls`)
 
 ```
 $ wt list
