@@ -40,6 +40,7 @@ var commandMenu = []string{
 	"link:link the repo to a project name",
 	"deps:manage dependency paths copied to new worktrees",
 	"peek:snapshot a revision into a disposable directory",
+	"unpeek:return from the peek and delete it",
 	"init:print shell integration",
 }
 

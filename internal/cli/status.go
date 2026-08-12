@@ -36,6 +36,7 @@ func status(dir string, args []string) error {
 			}
 			fmt.Fprintf(stdout, "deps      %s\n", state)
 		}
+		logf("exit with: wt peek off (or wt unpeek)")
 		return nil
 	}
 	ws, err := loadWorkspace(dir)

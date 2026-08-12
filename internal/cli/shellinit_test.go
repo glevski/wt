@@ -11,7 +11,7 @@ func TestShellInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	fn := out.String()
-	for _, want := range []string{"wt() {", "checkout|ch|create|fork|home|switch|peek) _wt_jump=1 ;;",
+	for _, want := range []string{"wt() {", "checkout|ch|create|fork|home|switch|peek|unpeek) _wt_jump=1 ;;",
 		`root) case "$2" in checkout|ch|create|fork) _wt_jump=1 ;; esac ;;`,
 		`eval "$_wt_script"`, `_wt_prev="$PWD"`, `WT_PREV="${_wt_prev:-}"`,
 		"WT_WRAPPER_VERSION=" + wrapperVersion + " ",

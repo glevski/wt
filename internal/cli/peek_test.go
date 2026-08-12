@@ -234,3 +234,29 @@ func TestPeekListAndVisibility(t *testing.T) {
 		t.Errorf("status inside peek wrong:\n%s", got)
 	}
 }
+
+func TestUnpeekAlias(t *testing.T) {
+	repo, root := peekFixture(t)
+	setupOutputs(t)
+	if err := peek(repo, []string{"--no-ignored", "HEAD~1"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(root, "proj", "peek-HEAD~1")
+	out, errOut := setupOutputs(t)
+
+	if err := status(dest, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(errOut.String(), "wt peek off (or wt unpeek)") {
+		t.Errorf("status missing the exit hint:\n%s", errOut.String())
+	}
+
+	// dispatch-level: unpeek == peek off
+	if err := peek(dest, []string{"off"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Error("peek dir still exists")
+	}
+	_ = out
+}

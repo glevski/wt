@@ -36,7 +36,7 @@ Usage:
   wt peek [rev]         jump into a disposable read-only snapshot of a
                         revision — a fake worktree with no branch or checkout;
                         env/deps flags apply; bare = list peeks;
-                        wt peek off returns and deletes it
+                        wt peek off returns and deletes it (alias: wt unpeek)
   wt switch             toggle between the current and last-used location,
                         like cd - (state is per shell)
   wt root <cmd> [args]  run status, checkout, create or fork in the root
@@ -150,6 +150,8 @@ func dispatch(cmd string, args []string) error {
 		return deps(cwd, args)
 	case "peek":
 		return peek(cwd, args)
+	case "unpeek":
+		return peek(cwd, append([]string{"off"}, args...))
 	case "complete":
 		return complete(cwd, args)
 	default:

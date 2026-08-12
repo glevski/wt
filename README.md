@@ -266,9 +266,11 @@ deps in the background — `-w`, `--no-deps`, `--no-ignored` work like on
 `create`/`fork`), so the peeked code runs.
 
 It's a viewer: git commands inside it fail (there's no repo), and edits are
-throwaway. `wt peek off` jumps you back to where you came from and deletes
-the directory; `wt peek off <name>` drops one from anywhere; bare `wt peek`
-lists open peeks, which also appear in `wt ls` as red `peek` rows. If looking
+throwaway. `wt peek off` (alias: `wt unpeek`) jumps you back to where you
+came from and deletes the directory; `wt peek off <name>` drops one from
+anywhere; bare `wt peek` lists open peeks, which also appear in `wt ls` as
+red `peek` rows. `wt status` inside a peek shows the peek view with the exit
+hint at the bottom. If looking
 turns into working, that's what `wt fork`/`wt create` are for.
 
 ## Base branches
