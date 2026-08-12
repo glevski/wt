@@ -97,6 +97,10 @@ ignored files still copy synchronously before the jump.
   worktree in the foreground — recovery after a failed background copy, or
   onboarding a worktree created before deps were declared.
 
+`wt rm` refuses a worktree whose deps are still syncing; `wt rm -f` stops the
+background copier first (its pid rides in the state marker) and then removes,
+so a forced removal never races the copy.
+
 ```
 $ wt create feature/auth
 wt: branch 'feature/auth' found locally (origin/feature/auth: ahead 2, behind 1)

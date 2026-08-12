@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"wt/internal/git"
 	"wt/internal/gittest"
@@ -190,6 +194,35 @@ func TestRemoveRefusesWhileSyncing(t *testing.T) {
 	}
 	if err := remove(repo, []string{"-f", "main-2"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRemoveForceKillsWorker(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"--no-deps"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+
+	// stand in for a live worker: a detached sleep whose pid is recorded
+	worker := exec.Command("sleep", "60")
+	worker.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := worker.Start(); err != nil {
+		t.Fatal(err)
+	}
+	git.WriteDepsState(dest, fmt.Sprintf("copying %d", worker.Process.Pid))
+
+	if err := remove(repo, []string{"-f", "main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- worker.Wait() }()
+	select {
+	case <-done: // terminated by the removal — what we want
+	case <-time.After(3 * time.Second):
+		_ = worker.Process.Kill()
+		t.Fatal("worker still alive after forced removal")
 	}
 }
 

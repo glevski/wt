@@ -83,7 +83,7 @@ func status(dir string, args []string) error {
 	fmt.Fprintf(stdout, "commit    %s\n", commit)
 	fmt.Fprintf(stdout, "path      %s\n", current.Path)
 	if state, ok := git.DepsState(current.Path); ok && state != "done" {
-		if state == "copying" {
+		if strings.HasPrefix(state, "copying") {
 			state = "copying… (log: " + git.DepsLogPath(current.Path) + ")"
 		}
 		fmt.Fprintf(stdout, "deps      %s\n", state)

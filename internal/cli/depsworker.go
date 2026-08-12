@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"wt/internal/git"
@@ -18,12 +19,31 @@ func depsWorker(args []string) error {
 		return fmt.Errorf("usage: worktree __deps-worker <src> <dst> <dep>...")
 	}
 	src, dst, deps := args[0], args[1], args[2:]
+	// Record our pid so a forced `wt rm` can stop us instead of racing the
+	// copy; the final done/failed write below supersedes it.
+	git.WriteDepsState(dst, fmt.Sprintf("copying %d", os.Getpid()))
 	if err := copyDepsInto(src, dst, deps); err != nil {
 		git.WriteDepsState(dst, "failed: "+err.Error())
 		return err
 	}
 	git.WriteDepsState(dst, "done")
 	return nil
+}
+
+// stopDepsWorker kills a still-running deps worker (its pid rides in the
+// "copying <pid>" marker) so a forced removal doesn't race the copy. Best
+// effort: no pid recorded yet, or a long-dead process, are both fine.
+func stopDepsWorker(worktreePath string) {
+	state, ok := git.DepsState(worktreePath)
+	if !ok || !strings.HasPrefix(state, "copying") {
+		return
+	}
+	var pid int
+	if _, err := fmt.Sscanf(state, "copying %d", &pid); err != nil || pid <= 0 {
+		return
+	}
+	// Negative pid targets the worker's process group (it setsid'd itself).
+	_ = syscall.Kill(-pid, syscall.SIGTERM)
 }
 
 // copyDepsInto copies deps one at a time; each lands atomically — built in a

@@ -108,7 +108,7 @@ func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
 	}
 	wg.Wait()
 	for i, e := range entries {
-		if state, ok := git.DepsState(e.wt.Path); ok && state == "copying" {
+		if state, ok := git.DepsState(e.wt.Path); ok && strings.HasPrefix(state, "copying") {
 			states[i] = "syncing"
 		}
 	}
