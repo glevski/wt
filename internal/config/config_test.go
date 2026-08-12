@@ -8,6 +8,22 @@ import (
 	"wt/internal/gittest"
 )
 
+func TestCopyIgnored(t *testing.T) {
+	repo := gittest.NewRepo(t)
+
+	if !CopyIgnored(repo) {
+		t.Error("default should be true")
+	}
+	gittest.Git(t, repo, "config", "wt.copyignored", "false")
+	if CopyIgnored(repo) {
+		t.Error("wt.copyignored=false should disable copying")
+	}
+	gittest.Git(t, repo, "config", "wt.copyignored", "true")
+	if !CopyIgnored(repo) {
+		t.Error("wt.copyignored=true should enable copying")
+	}
+}
+
 func TestName(t *testing.T) {
 	repo := gittest.NewRepo(t)
 

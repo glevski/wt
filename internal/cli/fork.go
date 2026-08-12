@@ -94,6 +94,7 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 	}
 
 	logf("carried over: %d staged, %d unstaged, %d untracked file(s)", len(staged), len(unstaged), len(untracked))
+	copyEnvironment(ws, path)
 	reportSwitch(ws, path, checkout)
 	return nil
 }

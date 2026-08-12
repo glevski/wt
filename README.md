@@ -70,6 +70,10 @@ new worktree — with `-n` naming the directory as usual.
   `feature/auth`, `-n -fix` gives `feature-auth-fix`; with auto-named branches
   (`wt fork` with no argument on `main`) `-n -exp` gives `main-exp`.
 
+Both commands also copy **git-ignored** files (`.env`, `node_modules`, …)
+from the worktree you run them in, so new worktrees are runnable without
+reinstalling anything. Turn it off with `git config wt.copyignored false`.
+
 ```
 $ wt create feature/auth
 wt: branch 'feature/auth' found locally (origin/feature/auth: ahead 2, behind 1)

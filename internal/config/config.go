@@ -9,6 +9,14 @@ import (
 	"wt/internal/git"
 )
 
+// CopyIgnored reports whether create/fork should copy git-ignored files
+// (.env, node_modules, …) into new worktrees so they are runnable
+// immediately. Default true; disable with `git config wt.copyignored false`.
+func CopyIgnored(repoDir string) bool {
+	v, _ := git.Run(repoDir, "config", "--get", "--type=bool", "wt.copyignored")
+	return v != "false"
+}
+
 // Name returns the project name from `git config wt.name`, ok=false when unset.
 func Name(repoDir string) (string, bool) {
 	name, err := git.Run(repoDir, "config", "--get", "wt.name")

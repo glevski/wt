@@ -17,6 +17,13 @@ func UntrackedFiles(worktreeRoot string) ([]string, error) {
 	return pathList(worktreeRoot, "ls-files", "--others", "--exclude-standard", "-z")
 }
 
+// IgnoredPaths returns git-ignored paths relative to worktreeRoot; wholly
+// ignored directories come collapsed with a trailing slash (node_modules/)
+// instead of one entry per contained file.
+func IgnoredPaths(worktreeRoot string) ([]string, error) {
+	return pathList(worktreeRoot, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z")
+}
+
 func pathList(dir string, args ...string) ([]string, error) {
 	out, err := Run(dir, args...)
 	if err != nil || out == "" {
