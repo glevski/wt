@@ -35,10 +35,7 @@ func status(dir string, args []string) error {
 	fmt.Fprintf(stdout, "worktree  %s\n", name)
 	fmt.Fprintf(stdout, "path      %s\n\n", current.Path)
 
-	gitStatus, err := git.Run(ws.dir(), "status")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(stdout, gitStatus)
-	return nil
+	// git inherits our stdout/stderr so it does its own TTY detection —
+	// colors and status config behave exactly like a hand-typed git status.
+	return git.RunPassthrough(ws.dir(), stdout, stderr, "status")
 }

@@ -6,6 +6,7 @@ package git
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 )
@@ -25,4 +26,17 @@ func Run(dir string, args ...string) (string, error) {
 		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), msg)
 	}
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+// RunPassthrough executes git -C dir with args writing straight to the given
+// writers, nothing captured or translated. When stdout is the process's own
+// terminal the child inherits its fd, so git sees a TTY and enables colors.
+func RunPassthrough(dir string, stdout, stderr io.Writer, args ...string) error {
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return nil
 }
