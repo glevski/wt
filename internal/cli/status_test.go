@@ -21,11 +21,21 @@ func TestStatusInMainWorktree(t *testing.T) {
 		"project   proj",
 		"worktree  " + filepath.Base(repo) + " (home)",
 		"path      " + repo,
-		"On branch main",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("status output missing %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "On branch") {
+		t.Errorf("git status shown without -g:\n%s", got)
+	}
+
+	out.Reset()
+	if err := status(repo, []string{"-g"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "On branch main") {
+		t.Errorf("-g did not append git status:\n%s", out.String())
 	}
 }
 
@@ -37,7 +47,7 @@ func TestStatusInLinkedWorktree(t *testing.T) {
 	gittest.WriteFile(t, side, "dirty.txt", "x")
 	out, _ := setupOutputs(t)
 
-	if err := status(side, nil); err != nil {
+	if err := status(side, []string{"--git"}); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()

@@ -31,7 +31,8 @@ Usage:
   wt switch             toggle between the current and last-used location,
                         like cd - (state is per shell)
   wt list               list this repo's worktrees (alias: ls)
-  wt status             show project link, current worktree and git status
+  wt status             show project link, current worktree and its path;
+                        -g/--git appends regular git status output
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
                         -b also deletes its branch when merged (alias: rm)
   wt link [name]        link this repo to a project name (stored in git config

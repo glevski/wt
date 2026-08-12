@@ -124,10 +124,16 @@ cannot be removed.
 ### `wt status`
 
 Shows where you are — project link, current worktree (with a `(home)` marker
-in the main checkout), its path — followed by regular `git status` output:
+in the main checkout), and its path. `-g`/`--git` appends regular `git status`
+output below it:
 
 ```
 $ wt status
+project   devbox
+worktree  main-2
+path      /home/dev/worktrees/devbox/main-2
+
+$ wt status -g
 project   devbox
 worktree  main-2
 path      /home/dev/worktrees/devbox/main-2
