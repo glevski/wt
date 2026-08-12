@@ -22,7 +22,7 @@ func TestStatusInMainWorktree(t *testing.T) {
 		"project   proj",
 		"worktree  " + filepath.Base(repo) + " (home)",
 		"branch    main",
-		"commit    " + sha,
+		"commit    " + sha + "  wt-test, ", // author and relative date follow the sha
 		"path      " + repo,
 	} {
 		if !strings.Contains(got, want) {

@@ -21,6 +21,14 @@ Every wt jump also exports **`WT_HOME`** — the main checkout path of the repo
 you jumped in — so `cd $WT_HOME`, `code $WT_HOME` and scripts always have the
 project root at hand.
 
+`init` also emits **tab completion**: subcommands complete on the first word,
+and everywhere a command accepts an existing worktree or branch name —
+`checkout`/`ch`, `status`, `remove`/`rm`, `create`, `fork`, `reset`, the `base`
+and `root` subcommands — `<TAB>` offers the real candidates, computed live by
+the binary (so `rm` only offers what is actually removable, and `create` also
+lists remote-only branches). If your `.zshrc` runs the eval before `compinit`,
+wt initializes the completion system itself.
+
 Then link each repo you want to manage, once:
 
 ```sh
@@ -96,11 +104,17 @@ wt: carried over: 2 staged, 1 unstaged, 3 untracked file(s)
 wt: switch with: wt ch main-2
 ```
 
-### `wt checkout <name>` (alias: `ch`)
+### `wt checkout [name]` (alias: `ch`)
 
 Jumps (cd's) to a worktree by its directory name; unique prefixes work too.
 No git state changes hands here — every worktree permanently has its branch
 checked out.
+
+Bare `wt ch` opens an **interactive picker**: the 10 most recently used
+worktrees (latest checkout stamp, falling back to creation time), newest
+first — arrows or j/k to move, Enter to jump, Esc/q to cancel. It renders on
+the terminal directly, so it composes with the shell wrapper like any other
+jump.
 
 `wt ch -b <new-branch>` works like `git checkout -b`: it forks your current
 state (staged, unstaged and untracked changes included) into a new worktree
@@ -168,14 +182,14 @@ $ wt status
 project   devbox
 worktree  main-2
 branch    main-2
-commit    4b9a96f
+commit    4b9a96f  Kirill G, 2 hours ago
 path      /home/dev/worktrees/devbox/main-2
 
 $ wt status -g
 project   devbox
 worktree  main-2
 branch    main-2
-commit    4b9a96f
+commit    4b9a96f  Kirill G, 2 hours ago
 path      /home/dev/worktrees/devbox/main-2
 
 On branch main-2

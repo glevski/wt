@@ -73,10 +73,14 @@ func status(dir string, args []string) error {
 	if drifted && paint {
 		branch = ansiRed + branch + ansiReset
 	}
+	commit := shortSHA(current.Head)
+	if info, err := git.Run(ws.dir(), "log", "-1", "--format=%an, %ar", current.Head); err == nil && info != "" {
+		commit += "  " + info
+	}
 	fmt.Fprintf(stdout, "project   %s\n", project)
 	fmt.Fprintf(stdout, "worktree  %s\n", name)
 	fmt.Fprintf(stdout, "branch    %s\n", branch)
-	fmt.Fprintf(stdout, "commit    %s\n", shortSHA(current.Head))
+	fmt.Fprintf(stdout, "commit    %s\n", commit)
 	fmt.Fprintf(stdout, "path      %s\n", current.Path)
 	if !*withGit {
 		return nil
