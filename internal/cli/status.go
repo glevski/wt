@@ -66,8 +66,17 @@ func status(dir string, args []string) error {
 	case isBase:
 		name += " (base)"
 	}
+	branch := current.Branch
+	if current.Detached {
+		branch = "(detached)"
+	}
+	if drifted && paint {
+		branch = ansiRed + branch + ansiReset
+	}
 	fmt.Fprintf(stdout, "project   %s\n", project)
 	fmt.Fprintf(stdout, "worktree  %s\n", name)
+	fmt.Fprintf(stdout, "branch    %s\n", branch)
+	fmt.Fprintf(stdout, "commit    %s\n", shortSHA(current.Head))
 	fmt.Fprintf(stdout, "path      %s\n", current.Path)
 	if !*withGit {
 		return nil

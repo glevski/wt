@@ -17,9 +17,12 @@ func TestStatusInMainWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
+	sha := gittest.Git(t, repo, "rev-parse", "HEAD")[:7]
 	for _, want := range []string{
 		"project   proj",
 		"worktree  " + filepath.Base(repo) + " (home)",
+		"branch    main",
+		"commit    " + sha,
 		"path      " + repo,
 	} {
 		if !strings.Contains(got, want) {

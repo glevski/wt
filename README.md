@@ -161,11 +161,15 @@ Shows a worktree — the current one by default, or any worktree by name
 $ wt status
 project   devbox
 worktree  main-2
+branch    main-2
+commit    4b9a96f
 path      /home/dev/worktrees/devbox/main-2
 
 $ wt status -g
 project   devbox
 worktree  main-2
+branch    main-2
+commit    4b9a96f
 path      /home/dev/worktrees/devbox/main-2
 
 On branch main-2
