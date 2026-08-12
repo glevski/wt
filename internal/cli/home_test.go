@@ -17,8 +17,8 @@ func TestHome(t *testing.T) {
 	if err := home(side, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != repo+"\n" {
-		t.Errorf("stdout = %q, want main worktree path %q", got, repo+"\n")
+	if got, want := out.String(), jumpScript(repo, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 
 	if err := home(repo, []string{"extra"}); err == nil {

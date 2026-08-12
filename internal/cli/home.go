@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 
 	"wt/internal/git"
@@ -21,6 +20,6 @@ func home(dir string, args []string) error {
 	root := ws.repo.Worktrees[0]
 	git.TouchCheckoutStamp(root.Path)
 	logf("→ %s/%s", ws.name, filepath.Base(root.Path))
-	fmt.Fprintln(stdout, root.Path)
+	emitJump(root.Path, root.Path)
 	return nil
 }

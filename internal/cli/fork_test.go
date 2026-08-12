@@ -148,7 +148,7 @@ func TestForkCheckoutFlag(t *testing.T) {
 	if err := fork(repo, []string{"-c", "experiment"}); err != nil {
 		t.Fatal(err)
 	}
-	want := worktreePath(root, "proj", "experiment") + "\n"
+	want := jumpScript(worktreePath(root, "proj", "experiment"), repo)
 	if got := out.String(); got != want {
 		t.Errorf("stdout = %q, want %q", got, want)
 	}

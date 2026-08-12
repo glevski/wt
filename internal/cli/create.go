@@ -69,7 +69,7 @@ func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride s
 		return err
 	}
 	logf("branch '%s' found locally %s", branch, upstreamNote(ws.dir(), branch))
-	reportCreated(path, checkout)
+	reportCreated(ws, path, checkout)
 	return nil
 }
 
@@ -86,7 +86,7 @@ func createBranchedFrom(ws *workspace, base string, holder *git.Worktree, checko
 	}
 	logf("branch '%s' is already checked out at %s", base, holder.Path)
 	logf("created new branch '%s' from '%s' %s", branch, base, upstreamNote(ws.dir(), base))
-	reportCreated(path, checkout)
+	reportCreated(ws, path, checkout)
 	return nil
 }
 
@@ -107,7 +107,7 @@ func createFromRemote(ws *workspace, branch string, remotes []string, checkout b
 		return err
 	}
 	logf("branch '%s' not found locally; created from %s/%s (tracking it)", branch, remote, branch)
-	reportCreated(path, checkout)
+	reportCreated(ws, path, checkout)
 	return nil
 }
 
@@ -130,7 +130,7 @@ func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
 		return err
 	}
 	logf("created new branch '%s' from HEAD (%s), without your local changes", branch, shortSHA(source.Head))
-	reportCreated(path, checkout)
+	reportCreated(ws, path, checkout)
 	return nil
 }
 
@@ -160,17 +160,17 @@ func upstreamNote(dir, branch string) string {
 	}
 }
 
-func reportCreated(path string, checkout bool) {
+func reportCreated(ws *workspace, path string, checkout bool) {
 	logf("created worktree '%s' at %s", filepath.Base(path), path)
-	reportSwitch(path, checkout)
+	reportSwitch(ws, path, checkout)
 }
 
-// reportSwitch either emits the path for the wt() shell function to cd into
-// (that's all -c/--checkout is: a path on stdout), or says how to get there.
-func reportSwitch(path string, checkout bool) {
+// reportSwitch either emits the jump script for the wt() shell function
+// (that's all -c/--checkout is), or says how to get there.
+func reportSwitch(ws *workspace, path string, checkout bool) {
 	if checkout {
 		git.TouchCheckoutStamp(path)
-		fmt.Fprintln(stdout, path)
+		emitJump(path, ws.repo.Worktrees[0].Path)
 		return
 	}
 	logf("switch with: wt ch %s", filepath.Base(path))

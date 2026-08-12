@@ -43,7 +43,7 @@ func checkout(dir string, args []string) error {
 	}
 	git.TouchCheckoutStamp(wt.Path)
 	logf("→ %s/%s", ws.name, filepath.Base(wt.Path))
-	fmt.Fprintln(stdout, wt.Path)
+	emitJump(wt.Path, ws.repo.Worktrees[0].Path)
 	return nil
 }
 

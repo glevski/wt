@@ -27,8 +27,8 @@ func TestCheckoutExactMatch(t *testing.T) {
 	if err := checkout(repo, []string{"feature-auth"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != authPath+"\n" {
-		t.Errorf("stdout = %q, want %q", got, authPath+"\n")
+	if got, want := out.String(), jumpScript(authPath, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 }
 
@@ -39,8 +39,8 @@ func TestCheckoutUniquePrefix(t *testing.T) {
 	if err := checkout(repo, []string{"feature-f"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != fixPath+"\n" {
-		t.Errorf("stdout = %q, want %q", got, fixPath+"\n")
+	if got, want := out.String(), jumpScript(fixPath, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 }
 
@@ -80,8 +80,8 @@ func TestCheckoutDashB(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := worktreePath(root, "proj", "hotfix")
-	if got := out.String(); got != path+"\n" {
-		t.Errorf("stdout = %q, want %q (must cd like git checkout -b)", got, path+"\n")
+	if got, want := out.String(), jumpScript(path, repo); got != want {
+		t.Errorf("stdout = %q, want %q (must cd like git checkout -b)", got, want)
 	}
 	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "hotfix" {
 		t.Errorf("branch = %q, want hotfix", got)
@@ -101,8 +101,8 @@ func TestCheckoutDashBExistingBranchBasesOffIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := worktreePath(root, "proj", "taken-2")
-	if got := out.String(); got != path+"\n" {
-		t.Errorf("stdout = %q, want %q", got, path+"\n")
+	if got, want := out.String(), jumpScript(path, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "taken-2" {
 		t.Errorf("branch = %q, want auto-named taken-2", got)
@@ -116,7 +116,7 @@ func TestCheckoutMainWorktreeByRepoName(t *testing.T) {
 	if err := checkout(repo, []string{filepath.Base(repo)}); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != repo+"\n" {
-		t.Errorf("stdout = %q, want %q", got, repo+"\n")
+	if got, want := out.String(), jumpScript(repo, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 }

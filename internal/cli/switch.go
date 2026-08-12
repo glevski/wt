@@ -26,12 +26,14 @@ func switchTo(args []string) error {
 		return fmt.Errorf("previous location %s no longer exists", prev)
 	}
 	// Best-effort niceties when the previous location is inside a worktree.
+	home := ""
 	if ws, err := loadWorkspace(prev); err == nil {
+		home = ws.repo.Worktrees[0].Path
 		if wt := ws.repo.Current(); wt != nil {
 			git.TouchCheckoutStamp(wt.Path)
 			logf("→ %s/%s", ws.name, filepath.Base(wt.Path))
 		}
 	}
-	fmt.Fprintln(stdout, prev)
+	emitJump(prev, home)
 	return nil
 }

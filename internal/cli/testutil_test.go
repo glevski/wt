@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -37,4 +38,9 @@ func linkedRepo(t *testing.T) string {
 // worktreePath is where a worktree named name lands for a project under root.
 func worktreePath(root, project, name string) string {
 	return filepath.Join(root, project, name)
+}
+
+// jumpScript is what a jump command emits on stdout for the wrapper to eval.
+func jumpScript(dest, home string) string {
+	return fmt.Sprintf("cd '%s'\nexport WT_HOME='%s'\n", dest, home)
 }

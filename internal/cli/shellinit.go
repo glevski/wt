@@ -9,7 +9,7 @@ import (
 // invocation, so a shell still running an older eval'd function gets told to
 // re-source instead of silently misbehaving. Bump it whenever shellFunction
 // changes behavior.
-const wrapperVersion = "4"
+const wrapperVersion = "5"
 
 // The function is POSIX-compatible so one template serves zsh and bash; the
 // shell argument is kept for future per-shell completions.
@@ -18,11 +18,11 @@ wt() {
     local _wt_bin=%q
     case "$1" in
         checkout|ch|create|fork|home|switch)
-            local _wt_dir
-            _wt_dir="$(WT_WRAPPER_VERSION=%s WT_PREV="${_wt_prev:-}" "$_wt_bin" "$@")" || return $?
-            if [ -n "$_wt_dir" ]; then
+            local _wt_script
+            _wt_script="$(WT_WRAPPER_VERSION=%s WT_PREV="${_wt_prev:-}" "$_wt_bin" "$@")" || return $?
+            if [ -n "$_wt_script" ]; then
                 _wt_prev="$PWD"
-                cd "$_wt_dir"
+                eval "$_wt_script"
             fi
             ;;
         *)

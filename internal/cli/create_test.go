@@ -191,7 +191,7 @@ func TestCreateCheckoutFlag(t *testing.T) {
 	if err := create(repo, []string{"-c", "feature"}); err != nil {
 		t.Fatal(err)
 	}
-	want := worktreePath(root, "proj", "feature") + "\n"
+	want := jumpScript(worktreePath(root, "proj", "feature"), repo)
 	if got := out.String(); got != want {
 		t.Errorf("stdout = %q, want %q", got, want)
 	}
@@ -202,7 +202,7 @@ func TestCreateCheckoutFlag(t *testing.T) {
 	if err := create(repo, []string{"--checkout"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasSuffix(out.String(), worktreePath(root, "proj", "main-2")+"\n") {
+	if !strings.HasSuffix(out.String(), jumpScript(worktreePath(root, "proj", "main-2"), repo)) {
 		t.Errorf("--checkout (no branch) stdout = %q", out.String())
 	}
 }

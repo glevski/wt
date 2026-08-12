@@ -11,7 +11,7 @@ func TestShellInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	fn := out.String()
-	for _, want := range []string{"wt() {", "checkout|ch|create|fork|home|switch)", `cd "$_wt_dir"`,
+	for _, want := range []string{"wt() {", "checkout|ch|create|fork|home|switch)", `eval "$_wt_script"`,
 		`_wt_prev="$PWD"`, `WT_PREV="${_wt_prev:-}"`,
 		"WT_WRAPPER_VERSION=" + wrapperVersion + " "} {
 		if !strings.Contains(fn, want) {

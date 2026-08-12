@@ -20,14 +20,28 @@ func TestSwitch(t *testing.T) {
 	if err := switchTo(nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != side+"\n" {
-		t.Errorf("stdout = %q, want %q", got, side+"\n")
+	if got, want := out.String(), jumpScript(side, repo); got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 	if !strings.Contains(errOut.String(), "→") {
 		t.Errorf("log missing jump line:\n%s", errOut.String())
 	}
 	if _, ok := git.CheckoutStamp(side); !ok {
 		t.Error("switch did not stamp the destination worktree")
+	}
+}
+
+func TestSwitchOutsideAnyRepo(t *testing.T) {
+	out, _ := setupOutputs(t)
+	prev := t.TempDir()
+	t.Setenv("WT_PREV", prev)
+
+	if err := switchTo(nil); err != nil {
+		t.Fatal(err)
+	}
+	// no repo context → cd only, WT_HOME untouched
+	if got, want := out.String(), "cd '"+prev+"'\n"; got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
 	}
 }
 

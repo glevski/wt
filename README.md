@@ -14,7 +14,12 @@ echo 'eval "$(worktree init zsh)"' >> ~/.zshrc   # or: init bash
 
 The `init` step is what makes `wt ch` able to actually `cd` you — a child
 process can never change its parent shell's directory, so `init` emits a small
-`wt()` shell function that wraps the binary and runs `cd` itself.
+`wt()` shell function that wraps the binary and evals the tiny jump script it
+prints (`cd …` plus environment updates).
+
+Every wt jump also exports **`WT_HOME`** — the main checkout path of the repo
+you jumped in — so `cd $WT_HOME`, `code $WT_HOME` and scripts always have the
+project root at hand.
 
 Then link each repo you want to manage, once:
 
