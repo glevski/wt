@@ -31,3 +31,20 @@ func TestAliases(t *testing.T) {
 		t.Errorf("wt ch did not route to checkout:\n%s", errOut.String())
 	}
 }
+
+func TestOutdatedWrapperWarning(t *testing.T) {
+	_, errOut := setupOutputs(t)
+
+	t.Setenv("WT_WRAPPER_VERSION", "0")
+	Run([]string{"ls"})
+	if !strings.Contains(errOut.String(), "outdated") {
+		t.Errorf("no staleness warning with an old wrapper version:\n%s", errOut.String())
+	}
+
+	errOut.Reset()
+	t.Setenv("WT_WRAPPER_VERSION", wrapperVersion)
+	Run([]string{"ls"})
+	if strings.Contains(errOut.String(), "outdated") {
+		t.Error("staleness warning fired for the current wrapper version")
+	}
+}

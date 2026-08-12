@@ -44,6 +44,9 @@ var (
 
 // Run dispatches a command line and returns the process exit code.
 func Run(args []string) int {
+	if v := os.Getenv("WT_WRAPPER_VERSION"); v != "" && v != wrapperVersion {
+		logf("your wt() shell function is outdated — restart the shell or re-run: eval \"$(worktree init zsh)\"")
+	}
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
