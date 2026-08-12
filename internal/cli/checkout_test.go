@@ -8,7 +8,7 @@ import (
 	"wt/internal/gittest"
 )
 
-func chFixture(t *testing.T) (repo, authPath, fixPath string) {
+func checkoutFixture(t *testing.T) (repo, authPath, fixPath string) {
 	t.Helper()
 	repo = gittest.NewRepo(t)
 	wtRoot(t)
@@ -20,11 +20,11 @@ func chFixture(t *testing.T) (repo, authPath, fixPath string) {
 	return repo, authPath, fixPath
 }
 
-func TestChExactMatch(t *testing.T) {
-	repo, authPath, _ := chFixture(t)
+func TestCheckoutExactMatch(t *testing.T) {
+	repo, authPath, _ := checkoutFixture(t)
 	out, _ := setupOutputs(t)
 
-	if err := ch(repo, []string{"feature-auth"}); err != nil {
+	if err := checkout(repo, []string{"feature-auth"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != authPath+"\n" {
@@ -32,11 +32,11 @@ func TestChExactMatch(t *testing.T) {
 	}
 }
 
-func TestChUniquePrefix(t *testing.T) {
-	repo, _, fixPath := chFixture(t)
+func TestCheckoutUniquePrefix(t *testing.T) {
+	repo, _, fixPath := checkoutFixture(t)
 	out, _ := setupOutputs(t)
 
-	if err := ch(repo, []string{"feature-f"}); err != nil {
+	if err := checkout(repo, []string{"feature-f"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != fixPath+"\n" {
@@ -44,11 +44,11 @@ func TestChUniquePrefix(t *testing.T) {
 	}
 }
 
-func TestChAmbiguousPrefix(t *testing.T) {
-	repo, _, _ := chFixture(t)
+func TestCheckoutAmbiguousPrefix(t *testing.T) {
+	repo, _, _ := checkoutFixture(t)
 	out, _ := setupOutputs(t)
 
-	err := ch(repo, []string{"feature"})
+	err := checkout(repo, []string{"feature"})
 	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
 		t.Fatalf("err = %v", err)
 	}
@@ -57,11 +57,11 @@ func TestChAmbiguousPrefix(t *testing.T) {
 	}
 }
 
-func TestChUnknown(t *testing.T) {
-	repo, _, _ := chFixture(t)
+func TestCheckoutUnknown(t *testing.T) {
+	repo, _, _ := checkoutFixture(t)
 	out, _ := setupOutputs(t)
 
-	err := ch(repo, []string{"zzz"})
+	err := checkout(repo, []string{"zzz"})
 	if err == nil || !strings.Contains(err.Error(), "no worktree named") {
 		t.Fatalf("err = %v", err)
 	}
@@ -70,11 +70,11 @@ func TestChUnknown(t *testing.T) {
 	}
 }
 
-func TestChMainWorktreeByRepoName(t *testing.T) {
-	repo, _, _ := chFixture(t)
+func TestCheckoutMainWorktreeByRepoName(t *testing.T) {
+	repo, _, _ := checkoutFixture(t)
 	out, _ := setupOutputs(t)
 
-	if err := ch(repo, []string{filepath.Base(repo)}); err != nil {
+	if err := checkout(repo, []string{filepath.Base(repo)}); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != repo+"\n" {

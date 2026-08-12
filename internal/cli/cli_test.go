@@ -23,4 +23,11 @@ func TestAliases(t *testing.T) {
 	if !strings.Contains(errOut.String(), "usage: wt remove") {
 		t.Errorf("wt rm did not route to remove:\n%s", errOut.String())
 	}
+
+	if code := Run([]string{"ch"}); code != 1 {
+		t.Errorf("wt ch without args exited %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "usage: wt checkout") {
+		t.Errorf("wt ch did not route to checkout:\n%s", errOut.String())
+	}
 }

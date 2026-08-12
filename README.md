@@ -80,7 +80,7 @@ wt: carried over: 2 staged, 1 unstaged, 3 untracked file(s)
 wt: switch with: wt ch main-2
 ```
 
-### `wt ch <name>`
+### `wt checkout <name>` (alias: `ch`)
 
 Jumps (cd's) to a worktree by its directory name; unique prefixes work too.
 The repo name itself takes you back to the main checkout. No git state changes

@@ -21,7 +21,8 @@ Usage:
                         Flags on both: -c/--checkout cd into the new worktree;
                         -n/--name set its directory name, where a leading dash
                         appends to the branch (-n -fix → <branch>-fix)
-  wt ch <name>          jump to a worktree by name (needs the wt() shell function)
+  wt checkout <name>    jump to a worktree by name, unique prefixes work
+                        (alias: ch; needs the wt() shell function)
   wt list               list this repo's worktrees (alias: ls)
   wt status             show project link, current worktree and git status
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
@@ -76,8 +77,8 @@ func dispatch(cmd string, args []string) error {
 		return create(cwd, args)
 	case "fork":
 		return fork(cwd, args)
-	case "ch":
-		return ch(cwd, args)
+	case "checkout", "ch":
+		return checkout(cwd, args)
 	case "list", "ls":
 		return list(cwd, args)
 	case "status":

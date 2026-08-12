@@ -9,12 +9,12 @@ import (
 	"wt/internal/git"
 )
 
-// ch prints the chosen worktree's absolute path on stdout; the wt() shell
-// function turns that into a cd. Nothing to check out — every worktree has
-// its branch permanently checked out.
-func ch(dir string, args []string) error {
+// checkout prints the chosen worktree's absolute path on stdout; the wt()
+// shell function turns that into a cd. Nothing to check out in git terms —
+// every worktree has its branch permanently checked out.
+func checkout(dir string, args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: wt ch <worktree-name>")
+		return errors.New("usage: wt checkout <worktree-name>")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
