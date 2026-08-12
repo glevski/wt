@@ -37,7 +37,7 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 	if err != nil {
 		return err
 	}
-	branch, path, err := forkName(ws, source, args, nameOverride)
+	branch, path, base, err := forkName(ws, source, args, nameOverride)
 	if err != nil {
 		return err
 	}
@@ -62,18 +62,24 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 		return err
 	}
 
-	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, "HEAD"); err != nil {
+	if _, err := git.Run(ws.dir(), "worktree", "add", "-b", branch, path, base); err != nil {
 		return err
 	}
-	logf("created new branch '%s' from HEAD (%s)", branch, shortSHA(source.Head))
+	if base == "HEAD" {
+		logf("created new branch '%s' from HEAD (%s)", branch, shortSHA(source.Head))
+	} else {
+		logf("branch '%s' already exists; created new branch '%s' from its tip %s",
+			base, branch, upstreamNote(ws.dir(), base))
+	}
 	logf("created worktree '%s' at %s", filepath.Base(path), path)
 
 	if stashSHA != "" {
 		// Worktrees share the object database, so the unreferenced stash
 		// commit applies directly; --index restores the staged/unstaged
-		// split exactly as it was.
+		// split exactly as it was. Onto a different base this can conflict.
 		if _, err := git.Run(path, "stash", "apply", "--index", stashSHA); err != nil {
-			return fmt.Errorf("worktree created, but applying your changes to it failed: %w", err)
+			return hintf(fmt.Sprintf("resolve there manually: git -C %s stash apply %s", path, stashSHA),
+				"worktree created, but applying your changes to it failed: %v", err)
 		}
 	}
 	for _, rel := range untracked {
@@ -87,34 +93,36 @@ func forkRun(dir string, args []string, nameOverride string, checkout bool) erro
 	return nil
 }
 
-// forkName resolves the new branch and worktree path: the explicit argument
-// (which must not clash with an existing branch), or <current-branch>-N.
-func forkName(ws *workspace, source *git.Worktree, args []string, nameOverride string) (string, string, error) {
+// forkName resolves the new branch, its worktree path, and the commit-ish the
+// branch starts from: HEAD normally, or an existing branch's tip when that
+// branch is passed as the argument (then the new branch is auto-named off it).
+func forkName(ws *workspace, source *git.Worktree, args []string, nameOverride string) (branch, path, base string, err error) {
 	if len(args) == 1 {
-		branch := args[0]
-		refs, err := git.LookupBranch(ws.dir(), branch)
+		requested := args[0]
+		refs, err := git.LookupBranch(ws.dir(), requested)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if refs.Local {
-			return "", "", hintf("wt create "+branch+" adds a worktree for the existing branch",
-				"branch '%s' already exists", branch)
+			branch, path, err = ws.newFrom(requested, nameOverride)
+			return branch, path, requested, err
 		}
-		name, err := worktreeName(branch, nameOverride)
+		name, err := worktreeName(requested, nameOverride)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
-		path, err := ws.targetPath(name)
+		path, err = ws.targetPath(name)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
-		return branch, path, nil
+		return requested, path, "HEAD", nil
 	}
 	if source.Branch == "" {
-		return "", "", hintf("wt fork <name> names the new branch explicitly",
+		return "", "", "", hintf("wt fork <name> names the new branch explicitly",
 			"detached HEAD — cannot derive a branch name")
 	}
-	return ws.newFrom(source.Branch, nameOverride)
+	branch, path, err = ws.newFrom(source.Branch, nameOverride)
+	return branch, path, "HEAD", err
 }
 
 // copyPath copies one untracked file into the new worktree, preserving

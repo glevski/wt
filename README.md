@@ -77,6 +77,12 @@ unstaged and untracked changes carried over — with the staged/unstaged split
 preserved exactly. The original worktree is left untouched (copy, not move).
 Without an argument the branch is auto-named like `create`.
 
+Passing an **existing** branch makes it the base instead: `wt fork main` from
+a dirty `dev` cuts an auto-named `main-2` at main's tip and carries your
+changes onto it — "take my WIP onto a fresh main". If the changes don't apply
+cleanly there, the worktree stays and the error tells you how to finish the
+apply manually.
+
 ```
 $ wt fork
 wt: created new branch 'main-2' from HEAD (4b9a96f)

@@ -91,15 +91,21 @@ func TestCheckoutDashB(t *testing.T) {
 	}
 }
 
-func TestCheckoutDashBExistingBranch(t *testing.T) {
+func TestCheckoutDashBExistingBranchBasesOffIt(t *testing.T) {
 	repo := linkedRepo(t)
-	wtRoot(t)
-	setupOutputs(t)
+	root := wtRoot(t)
+	out, _ := setupOutputs(t)
 	gittest.Git(t, repo, "branch", "taken")
 
-	err := checkout(repo, []string{"-b", "taken"})
-	if err == nil || !strings.Contains(err.Error(), "already exists") {
-		t.Fatalf("err = %v", err)
+	if err := checkout(repo, []string{"-b", "taken"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "taken-2")
+	if got := out.String(); got != path+"\n" {
+		t.Errorf("stdout = %q, want %q", got, path+"\n")
+	}
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "taken-2" {
+		t.Errorf("branch = %q, want auto-named taken-2", got)
 	}
 }
 

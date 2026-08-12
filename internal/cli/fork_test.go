@@ -105,15 +105,38 @@ func TestForkExplicitName(t *testing.T) {
 	}
 }
 
-func TestForkNameTaken(t *testing.T) {
+func TestForkExistingBranchBasesOffItsTip(t *testing.T) {
 	repo := linkedRepo(t)
-	wtRoot(t)
-	setupOutputs(t)
-	gittest.Git(t, repo, "branch", "taken")
+	root := wtRoot(t)
+	_, errOut := setupOutputs(t)
+	mainSHA := gittest.Git(t, repo, "rev-parse", "HEAD")
 
-	err := fork(repo, []string{"taken"})
-	if err == nil || !strings.Contains(err.Error(), "already exists") {
-		t.Fatalf("err = %v", err)
+	// move to a diverged branch, with local changes to carry
+	gittest.Git(t, repo, "checkout", "-b", "dev")
+	gittest.WriteFile(t, repo, "devwork.txt", "x")
+	gittest.Commit(t, repo, "dev work")
+	gittest.WriteFile(t, repo, "README.md", "unstaged change")
+	gittest.WriteFile(t, repo, "wip.txt", "untracked")
+
+	if err := fork(repo, []string{"main"}); err != nil {
+		t.Fatal(err)
+	}
+
+	path := worktreePath(root, "proj", "main-2")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "main-2" {
+		t.Errorf("branch = %q, want auto-named main-2", got)
+	}
+	if got := gittest.Git(t, path, "rev-parse", "HEAD"); got != mainSHA {
+		t.Errorf("fork based on %s, want main's tip %s (not dev's HEAD)", got, mainSHA)
+	}
+	if got := gittest.Git(t, path, "diff", "--name-only"); got != "README.md" {
+		t.Errorf("unstaged changes in fork = %q, want README.md", got)
+	}
+	if got := gittest.Git(t, path, "ls-files", "--others", "--exclude-standard"); got != "wip.txt" {
+		t.Errorf("untracked in fork = %q, want wip.txt", got)
+	}
+	if !strings.Contains(errOut.String(), "branch 'main' already exists; created new branch 'main-2'") {
+		t.Errorf("log missing base explanation:\n%s", errOut.String())
 	}
 }
 

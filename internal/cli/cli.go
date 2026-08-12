@@ -17,7 +17,9 @@ Usage:
                         branch; with no argument, a clean worktree off the
                         current HEAD on a new auto-named branch
   wt fork [flags] [new-branch]  add a worktree off the current HEAD carrying
-                        over all staged, unstaged and untracked changes
+                        over all staged, unstaged and untracked changes; an
+                        existing branch argument bases the fork off its tip
+                        with an auto-named new branch
                         Flags on both: -c/--checkout cd into the new worktree;
                         -n/--name set its directory name, where a leading dash
                         appends to the branch (-n -fix → <branch>-fix)
