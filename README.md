@@ -137,11 +137,12 @@ default; `-b` deletes it too — safely (`git branch -d`), so an unmerged branch
 survives with a hint. The main checkout and the worktree you are standing in
 cannot be removed.
 
-### `wt status`
+### `wt status [name]`
 
-Shows where you are — project link, current worktree (with a `(home)` marker
-in the main checkout), and its path. `-g`/`--git` appends regular `git status`
-output below it:
+Shows a worktree — the current one by default, or any worktree by name
+(prefix matching like `checkout`) — as project link, worktree name (with a
+`(home)` marker for the main checkout), and path. `-g`/`--git` appends regular
+`git status` output as if run in that worktree:
 
 ```
 $ wt status

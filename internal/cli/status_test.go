@@ -59,6 +59,27 @@ func TestStatusInLinkedWorktree(t *testing.T) {
 	}
 }
 
+func TestStatusNamedWorktree(t *testing.T) {
+	repo := linkedRepo(t)
+	wtRoot(t)
+	side := filepath.Join(t.TempDir(), "side")
+	gittest.Git(t, repo, "worktree", "add", "-b", "side", side)
+	gittest.WriteFile(t, side, "dirty.txt", "x")
+	out, _ := setupOutputs(t)
+
+	// invoked from the main checkout, but showing the named worktree
+	if err := status(repo, []string{"-g", "side"}); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "worktree  side\n") || !strings.Contains(got, "path      "+side) {
+		t.Errorf("status output not about 'side':\n%s", got)
+	}
+	if !strings.Contains(got, "dirty.txt") {
+		t.Errorf("git status part not run in the named worktree:\n%s", got)
+	}
+}
+
 func TestStatusUnlinkedRepo(t *testing.T) {
 	repo := gittest.NewRepo(t)
 	wtRoot(t)

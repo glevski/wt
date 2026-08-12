@@ -11,23 +11,34 @@ import (
 	"wt/internal/git"
 )
 
-// status shows where you are — project link, current worktree, its path —
-// and with -g/--git appends plain `git status` output.
+// status shows a worktree — the current one, or any named one — as project
+// link, worktree name and path; -g/--git appends plain `git status` output
+// as if run there.
 func status(dir string, args []string) error {
 	fs := flag.NewFlagSet("wt status", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	withGit := fs.Bool("g", false, "append git status output")
 	fs.BoolVar(withGit, "git", false, "append git status output")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		return errors.New("usage: wt status [-g|--git]")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt status [-g|--git] [worktree-name]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
 	}
-	current, err := ws.currentWorktree()
-	if err != nil {
-		return err
+	current, statusDir := (*git.Worktree)(nil), ""
+	if fs.NArg() == 1 {
+		current, err = matchWorktree(ws.repo.Worktrees, fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		statusDir = current.Path
+	} else {
+		current, err = ws.currentWorktree()
+		if err != nil {
+			return err
+		}
+		statusDir = ws.dir() // keep git status paths relative to where you stand
 	}
 
 	project := ws.name
@@ -52,5 +63,5 @@ func status(dir string, args []string) error {
 	fmt.Fprintln(stdout)
 	// git inherits our stdout/stderr so it does its own TTY detection —
 	// colors and status config behave exactly like a hand-typed git status.
-	return git.RunPassthrough(ws.dir(), stdout, stderr, "status")
+	return git.RunPassthrough(statusDir, stdout, stderr, "status")
 }
