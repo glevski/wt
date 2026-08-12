@@ -182,6 +182,57 @@ func TestCreateCheckoutFlag(t *testing.T) {
 	}
 }
 
+func TestCreateNamedWorktree(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	setupOutputs(t)
+	gittest.Git(t, repo, "branch", "feature/auth")
+
+	if err := create(repo, []string{"-n", "authwork", "feature/auth"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "authwork")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "feature/auth" {
+		t.Errorf("branch = %q, want feature/auth", got)
+	}
+}
+
+func TestCreateNameDashShorthand(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	setupOutputs(t)
+	gittest.Git(t, repo, "branch", "feature/auth")
+
+	// -n -fix on branch feature/auth → directory feature-auth-fix
+	if err := create(repo, []string{"-n", "-fix", "feature/auth"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(worktreePath(root, "proj", "feature-auth-fix")); err != nil {
+		t.Error("dash shorthand did not expand to <branch>-fix")
+	}
+
+	// no positional: expands against the current branch, branch auto-named
+	if err := create(repo, []string{"-n", "-exp"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "main-exp")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "main-2" {
+		t.Errorf("branch = %q, want auto-named main-2", got)
+	}
+}
+
+func TestCreateNameUnsafe(t *testing.T) {
+	repo := linkedRepo(t)
+	wtRoot(t)
+	setupOutputs(t)
+	gittest.Git(t, repo, "branch", "feature")
+
+	err := create(repo, []string{"-n", "bad name", "feature"})
+	if err == nil || !strings.Contains(err.Error(), "not filesystem-safe") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestCreateUnlinkedRepo(t *testing.T) {
 	repo := gittest.NewRepo(t)
 	root := wtRoot(t)

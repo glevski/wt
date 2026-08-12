@@ -13,12 +13,14 @@ import (
 const usage = `worktree — fast git worktree manager (alias it to wt via "init")
 
 Usage:
-  wt create [-c] [branch]    add a worktree for an existing local or remote
+  wt create [flags] [branch]    add a worktree for an existing local or remote
                         branch; with no argument, a clean worktree off the
                         current HEAD on a new auto-named branch
-  wt fork [-c] [new-branch]  add a worktree off the current HEAD carrying over
-                        all staged, unstaged and untracked changes
-                        (-c/--checkout on both: cd into the new worktree)
+  wt fork [flags] [new-branch]  add a worktree off the current HEAD carrying
+                        over all staged, unstaged and untracked changes
+                        Flags on both: -c/--checkout cd into the new worktree;
+                        -n/--name set its directory name, where a leading dash
+                        appends to the branch (-n -fix → <branch>-fix)
   wt ch <name>          jump to a worktree by name (needs the wt() shell function)
   wt list               list this repo's worktrees (alias: ls)
   wt status             show project link, current worktree and git status

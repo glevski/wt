@@ -52,10 +52,9 @@ func (ws *workspace) currentWorktree() (*git.Worktree, error) {
 	return wt, nil
 }
 
-// targetPath is where a worktree for branch would live, erroring when the
-// directory is already taken.
-func (ws *workspace) targetPath(branch string) (string, error) {
-	name := dirName(branch)
+// targetPath is where a worktree directory called name would live, erroring
+// when it is already taken.
+func (ws *workspace) targetPath(name string) (string, error) {
 	path := filepath.Join(ws.root, name)
 	for _, wt := range ws.repo.Worktrees {
 		if wt.Path == path {
@@ -93,4 +92,42 @@ func (ws *workspace) freeName(base string) (branch, path string, err error) {
 		return branch, path, nil
 	}
 	return "", "", fmt.Errorf("no free name between %s-2 and %s-99", base, base)
+}
+
+// freeBranch picks the first <base>-N (N ≥ 2) not taken by a local branch,
+// for when the directory name is chosen explicitly.
+func (ws *workspace) freeBranch(base string) (string, error) {
+	existing, err := git.LocalBranches(ws.dir(), base+"-*")
+	if err != nil {
+		return "", err
+	}
+	taken := make(map[string]bool, len(existing))
+	for _, b := range existing {
+		taken[b] = true
+	}
+	for n := 2; n < 100; n++ {
+		candidate := fmt.Sprintf("%s-%d", base, n)
+		if !taken[candidate] {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("no free branch between %s-2 and %s-99", base, base)
+}
+
+// namedNew pairs an auto-suffixed branch off base with an explicitly named
+// worktree directory.
+func (ws *workspace) namedNew(base, nameOverride string) (branch, path string, err error) {
+	branch, err = ws.freeBranch(base)
+	if err != nil {
+		return "", "", err
+	}
+	name, err := worktreeName(base, nameOverride)
+	if err != nil {
+		return "", "", err
+	}
+	path, err = ws.targetPath(name)
+	if err != nil {
+		return "", "", err
+	}
+	return branch, path, nil
 }

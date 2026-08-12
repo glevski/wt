@@ -16,8 +16,10 @@ func fork(dir string, args []string) error {
 	fs.SetOutput(io.Discard)
 	checkout := fs.Bool("c", false, "cd into the new worktree")
 	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
+	name := fs.String("n", "", "worktree directory name")
+	fs.StringVar(name, "name", "", "worktree directory name")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
-		return errors.New("usage: wt fork [-c|--checkout] [new-branch]")
+		return errors.New("usage: wt fork [-c|--checkout] [-n|--name <name>] [new-branch]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -30,7 +32,7 @@ func fork(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
-	branch, path, err := forkName(ws, source, fs.Args())
+	branch, path, err := forkName(ws, source, fs.Args(), *name)
 	if err != nil {
 		return err
 	}
@@ -82,7 +84,7 @@ func fork(dir string, args []string) error {
 
 // forkName resolves the new branch and worktree path: the explicit argument
 // (which must not clash with an existing branch), or <current-branch>-N.
-func forkName(ws *workspace, source *git.Worktree, args []string) (string, string, error) {
+func forkName(ws *workspace, source *git.Worktree, args []string, nameOverride string) (string, string, error) {
 	if len(args) == 1 {
 		branch := args[0]
 		refs, err := git.LookupBranch(ws.dir(), branch)
@@ -93,7 +95,11 @@ func forkName(ws *workspace, source *git.Worktree, args []string) (string, strin
 			return "", "", hintf("wt create "+branch+" adds a worktree for the existing branch",
 				"branch '%s' already exists", branch)
 		}
-		path, err := ws.targetPath(branch)
+		name, err := worktreeName(branch, nameOverride)
+		if err != nil {
+			return "", "", err
+		}
+		path, err := ws.targetPath(name)
 		if err != nil {
 			return "", "", err
 		}
@@ -103,7 +109,10 @@ func forkName(ws *workspace, source *git.Worktree, args []string) (string, strin
 		return "", "", hintf("wt fork <name> names the new branch explicitly",
 			"detached HEAD — cannot derive a branch name")
 	}
-	return ws.freeName(source.Branch)
+	if nameOverride == "" {
+		return ws.freeName(source.Branch)
+	}
+	return ws.namedNew(source.Branch, nameOverride)
 }
 
 // copyPath copies one untracked file into the new worktree, preserving

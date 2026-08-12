@@ -16,8 +16,10 @@ func create(dir string, args []string) error {
 	fs.SetOutput(io.Discard)
 	checkout := fs.Bool("c", false, "cd into the new worktree")
 	fs.BoolVar(checkout, "checkout", false, "cd into the new worktree")
+	name := fs.String("n", "", "worktree directory name")
+	fs.StringVar(name, "name", "", "worktree directory name")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
-		return errors.New("usage: wt create [-c|--checkout] [branch]")
+		return errors.New("usage: wt create [-c|--checkout] [-n|--name <name>] [branch]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -27,23 +29,23 @@ func create(dir string, args []string) error {
 		return ws.requireLink()
 	}
 	if fs.NArg() == 0 {
-		return createFromHead(ws, *checkout)
+		return createFromHead(ws, *checkout, *name)
 	}
-	return createForBranch(ws, fs.Arg(0), *checkout)
+	return createForBranch(ws, fs.Arg(0), *checkout, *name)
 }
 
 // createForBranch adds a worktree for an existing branch: the local one when
 // it exists, otherwise a new tracking branch from a remote.
-func createForBranch(ws *workspace, branch string, checkout bool) error {
+func createForBranch(ws *workspace, branch string, checkout bool, nameOverride string) error {
 	refs, err := git.LookupBranch(ws.dir(), branch)
 	if err != nil {
 		return err
 	}
 	switch {
 	case refs.Local:
-		return createFromLocal(ws, branch, checkout)
+		return createFromLocal(ws, branch, checkout, nameOverride)
 	case len(refs.Remotes) > 0:
-		return createFromRemote(ws, branch, refs.Remotes, checkout)
+		return createFromRemote(ws, branch, refs.Remotes, checkout, nameOverride)
 	default:
 		return hintf(
 			fmt.Sprintf("fetch first (git fetch), or start a new branch: wt fork %s", branch),
@@ -51,12 +53,16 @@ func createForBranch(ws *workspace, branch string, checkout bool) error {
 	}
 }
 
-func createFromLocal(ws *workspace, branch string, checkout bool) error {
+func createFromLocal(ws *workspace, branch string, checkout bool, nameOverride string) error {
 	if wt := ws.repo.CheckedOut(branch); wt != nil {
 		return hintf("wt ch "+filepath.Base(wt.Path),
 			"branch '%s' is already checked out at %s", branch, wt.Path)
 	}
-	path, err := ws.targetPath(branch)
+	name, err := worktreeName(branch, nameOverride)
+	if err != nil {
+		return err
+	}
+	path, err := ws.targetPath(name)
 	if err != nil {
 		return err
 	}
@@ -68,12 +74,16 @@ func createFromLocal(ws *workspace, branch string, checkout bool) error {
 	return nil
 }
 
-func createFromRemote(ws *workspace, branch string, remotes []string, checkout bool) error {
+func createFromRemote(ws *workspace, branch string, remotes []string, checkout bool, nameOverride string) error {
 	remote, err := pickRemote(branch, remotes)
 	if err != nil {
 		return err
 	}
-	path, err := ws.targetPath(branch)
+	name, err := worktreeName(branch, nameOverride)
+	if err != nil {
+		return err
+	}
+	path, err := ws.targetPath(name)
 	if err != nil {
 		return err
 	}
@@ -87,7 +97,7 @@ func createFromRemote(ws *workspace, branch string, remotes []string, checkout b
 
 // createFromHead adds a clean worktree at the current commit on a new
 // auto-named branch; local changes stay behind (use fork to carry them).
-func createFromHead(ws *workspace, checkout bool) error {
+func createFromHead(ws *workspace, checkout bool, nameOverride string) error {
 	source, err := ws.currentWorktree()
 	if err != nil {
 		return err
@@ -96,7 +106,12 @@ func createFromHead(ws *workspace, checkout bool) error {
 		return hintf("wt fork <name> creates a named branch here",
 			"detached HEAD — cannot derive a branch name")
 	}
-	branch, path, err := ws.freeName(source.Branch)
+	var branch, path string
+	if nameOverride == "" {
+		branch, path, err = ws.freeName(source.Branch)
+	} else {
+		branch, path, err = ws.namedNew(source.Branch, nameOverride)
+	}
 	if err != nil {
 		return err
 	}

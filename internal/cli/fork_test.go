@@ -131,6 +131,33 @@ func TestForkCheckoutFlag(t *testing.T) {
 	}
 }
 
+func TestForkNamedWorktree(t *testing.T) {
+	repo := linkedRepo(t)
+	root := wtRoot(t)
+	setupOutputs(t)
+	gittest.WriteFile(t, repo, "wip.txt", "x")
+
+	if err := fork(repo, []string{"-n", "-wip"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "main-wip")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "main-2" {
+		t.Errorf("branch = %q, want auto-named main-2", got)
+	}
+	if _, err := os.Stat(filepath.Join(path, "wip.txt")); err != nil {
+		t.Error("untracked file missing in named fork")
+	}
+
+	// explicit branch + explicit name
+	if err := fork(repo, []string{"-n", "playground", "experiment"}); err != nil {
+		t.Fatal(err)
+	}
+	path = worktreePath(root, "proj", "playground")
+	if got := gittest.Git(t, path, "symbolic-ref", "--short", "HEAD"); got != "experiment" {
+		t.Errorf("branch = %q, want experiment", got)
+	}
+}
+
 func TestForkUnlinkedRepo(t *testing.T) {
 	repo := gittest.NewRepo(t)
 	root := wtRoot(t)

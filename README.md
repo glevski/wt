@@ -44,8 +44,13 @@ otherwise from a remote (preferring `origin`), as a new tracking branch. Logs
 where the branch came from and how it relates to its upstream. Purely local:
 it never fetches; if the branch is unknown, it tells you to `git fetch` first.
 
-`create` and `fork` both take `-c`/`--checkout` to cd straight into the new
-worktree (flags go before the branch name).
+`create` and `fork` share two flags (flags go before the branch name):
+
+- `-c`/`--checkout` — cd straight into the new worktree.
+- `-n`/`--name` — pick the worktree's directory name instead of deriving it
+  from the branch. A leading dash appends to the branch name: on
+  `feature/auth`, `-n -fix` gives `feature-auth-fix`; with auto-named branches
+  (`wt fork` with no argument on `main`) `-n -exp` gives `main-exp`.
 
 ```
 $ wt create feature/auth
