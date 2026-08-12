@@ -88,8 +88,13 @@ wt: switch with: wt ch main-2
 ### `wt checkout <name>` (alias: `ch`)
 
 Jumps (cd's) to a worktree by its directory name; unique prefixes work too.
-The repo name itself takes you back to the main checkout. No git state changes
-hands here — every worktree permanently has its branch checked out.
+No git state changes hands here — every worktree permanently has its branch
+checked out.
+
+### `wt home`
+
+Jumps back to the main checkout (the root repo), from wherever you are —
+no name needed.
 
 ### `wt remove [-f] [-b] <name>` (alias: `rm`)
 

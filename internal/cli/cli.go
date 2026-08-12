@@ -23,6 +23,7 @@ Usage:
                         appends to the branch (-n -fix → <branch>-fix)
   wt checkout <name>    jump to a worktree by name, unique prefixes work
                         (alias: ch; needs the wt() shell function)
+  wt home               jump back to the main checkout (root repo)
   wt list               list this repo's worktrees (alias: ls)
   wt status             show project link, current worktree and git status
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
@@ -82,6 +83,8 @@ func dispatch(cmd string, args []string) error {
 		return fork(cwd, args)
 	case "checkout", "ch":
 		return checkout(cwd, args)
+	case "home":
+		return home(cwd, args)
 	case "list", "ls":
 		return list(cwd, args)
 	case "status":
