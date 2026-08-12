@@ -196,6 +196,67 @@ func TestBaseListFiltersToBases(t *testing.T) {
 	}
 }
 
+func TestBaseResetToUpstream(t *testing.T) {
+	repo, basePath := baseFixture(t)
+	_, errOut := setupOutputs(t)
+	gittest.AddRemote(t, repo)
+	gittest.Git(t, repo, "push", "-u", "origin", "staging")
+	upstreamTip := gittest.Git(t, repo, "rev-parse", "origin/staging")
+
+	// the base moved ahead locally (an accidental commit); tree stays clean
+	gittest.WriteFile(t, basePath, "oops.txt", "committed by accident")
+	gittest.Commit(t, basePath, "accidental commit")
+
+	if err := base(repo, []string{"reset", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gittest.Git(t, basePath, "rev-parse", "HEAD"); got != upstreamTip {
+		t.Errorf("base HEAD = %s, want upstream tip %s", got, upstreamTip)
+	}
+	if !strings.Contains(errOut.String(), "reset base 'staging' to origin/staging") {
+		t.Errorf("log missing reset line:\n%s", errOut.String())
+	}
+}
+
+func TestBaseResetBlocksOnChanges(t *testing.T) {
+	repo, basePath := baseFixture(t)
+	setupOutputs(t)
+	gittest.AddRemote(t, repo)
+	gittest.Git(t, repo, "push", "-u", "origin", "staging")
+	gittest.WriteFile(t, basePath, "untracked.txt", "u")
+
+	err := base(repo, []string{"reset", "staging"})
+	if err == nil || !strings.Contains(err.Error(), "local changes") {
+		t.Fatalf("err = %v", err)
+	}
+
+	// --hard, invoked from inside the base with no name argument
+	gittest.WriteFile(t, basePath, "README.md", "tracked change")
+	if err := base(basePath, []string{"reset", "--hard"}); err != nil {
+		t.Fatal(err)
+	}
+	status := gittest.Git(t, basePath, "status", "--porcelain")
+	if !strings.Contains(status, "untracked.txt") || strings.Contains(status, "README.md") {
+		t.Errorf("after --hard: tracked change gone, untracked kept; got:\n%s", status)
+	}
+}
+
+func TestBaseResetGuards(t *testing.T) {
+	repo, basePath := baseFixture(t)
+	setupOutputs(t)
+
+	if err := base(repo, []string{"reset", "staging"}); err == nil || !strings.Contains(err.Error(), "no upstream") {
+		t.Fatalf("no-upstream err = %v", err)
+	}
+	if err := base(repo, []string{"reset"}); err == nil || !strings.Contains(err.Error(), "not inside a base") {
+		t.Fatalf("outside-base err = %v", err)
+	}
+	gittest.Git(t, basePath, "checkout", "-b", "sneaky")
+	if err := base(repo, []string{"reset", "staging"}); err == nil || !strings.Contains(err.Error(), "drifted") {
+		t.Fatalf("drifted err = %v", err)
+	}
+}
+
 func TestBaseUpdateFastForwards(t *testing.T) {
 	repo, basePath := baseFixture(t)
 	_, errOut := setupOutputs(t)

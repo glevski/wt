@@ -11,7 +11,7 @@ import (
 	"wt/internal/git"
 )
 
-const baseUsage = "usage: wt base [add <branch> | list | rm [-f] <name> | update [name]]"
+const baseUsage = "usage: wt base [add <branch> | list | rm [-f] <name> | update [name] | reset [--hard] [name]]"
 
 // base manages base branches: permanent, view-only worktrees for long-lived
 // branches (main/staging/dev). You jump in to look around, then fork real
@@ -32,6 +32,8 @@ func base(dir string, args []string) error {
 		return baseRemove(dir, rest)
 	case "update":
 		return baseUpdate(dir, rest)
+	case "reset":
+		return baseReset(dir, rest)
 	default:
 		return fmt.Errorf("unknown base command %q — %s", sub, baseUsage)
 	}
@@ -222,6 +224,74 @@ func baseUpdate(dir string, args []string) error {
 			logf("%s: updated to %s (was %s)", name, shortSHA(after), shortSHA(b.wt.Head))
 		}
 	}
+	return nil
+}
+
+// baseReset snaps a base branch back to its upstream's tip — the hard
+// sibling of update: it moves the branch wherever the upstream is, backward
+// included. Same safety contract as wt reset: local changes block it, --hard
+// proceeds keeping only untracked files.
+func baseReset(dir string, args []string) error {
+	fs := flag.NewFlagSet("wt base reset", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	hard := fs.Bool("hard", false, "discard tracked changes")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt base reset [--hard] [name]")
+	}
+	ws, err := loadWorkspace(dir)
+	if err != nil {
+		return err
+	}
+
+	var target *git.Worktree
+	var branch string
+	if fs.NArg() == 1 {
+		target = findBase(ws, fs.Arg(0))
+		if target == nil {
+			return hintf("wt base lists them", "no base named '%s'", fs.Arg(0))
+		}
+		branch, _ = git.ReadBaseMark(target.Path)
+	} else {
+		current, err := ws.currentWorktree()
+		if err != nil {
+			return err
+		}
+		marked, ok := git.ReadBaseMark(current.Path)
+		if !ok {
+			return hintf("wt base reset <name> targets one by name", "not inside a base worktree")
+		}
+		target, branch = current, marked
+	}
+	name := filepath.Base(target.Path)
+
+	if target.Branch != branch {
+		return hintf(fmt.Sprintf("git -C %s checkout %s brings it back", target.Path, branch),
+			"'%s' has drifted to branch '%s'", name, target.Branch)
+	}
+	up, ok := git.UpstreamOf(ws.dir(), branch)
+	if !ok {
+		return fmt.Errorf("branch '%s' has no upstream to reset to", branch)
+	}
+	tip, err := git.Run(ws.dir(), "rev-parse", "--verify", "--quiet", up.Name)
+	if err != nil || tip == "" {
+		return fmt.Errorf("upstream '%s' does not resolve to a commit", up.Name)
+	}
+
+	if !*hard {
+		status, err := git.Run(target.Path, "status", "--porcelain")
+		if err != nil {
+			return err
+		}
+		if status != "" {
+			return hintf("wt base reset --hard discards tracked changes (untracked files are kept)",
+				"base '%s' has local changes", name)
+		}
+	}
+
+	if _, err := git.Run(target.Path, "reset", "--hard", tip); err != nil {
+		return err
+	}
+	logf("reset base '%s' to %s (%s, was %s)", name, up.Name, shortSHA(tip), shortSHA(target.Head))
 	return nil
 }
 

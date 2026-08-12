@@ -36,7 +36,8 @@ Usage:
   wt base [cmd]         manage base branches — permanent view-only worktrees
                         for long-lived branches you fork real work off:
                         add <branch>, list (default), rm [-f] <name>,
-                        update [name] (fast-forward to upstream)
+                        update [name] (fast-forward to upstream),
+                        reset [--hard] [name] (hard-sync to upstream)
   wt list               list this repo's worktrees (alias: ls)
   wt status [name]      show a worktree (default: the current one) — project
                         link, worktree and path; -g/--git appends git status

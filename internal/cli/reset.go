@@ -35,7 +35,8 @@ func reset(dir string, args []string) error {
 		return errors.New("reset only works in a worktree, not the main checkout")
 	}
 	if _, isBase := git.ReadBaseMark(current.Path); isBase {
-		return errors.New("this is a base worktree — other worktrees reset to it, it has nothing to reset to")
+		return hintf("wt base reset snaps it back to its upstream",
+			"this is a base worktree — other worktrees reset to it")
 	}
 	if current.Branch == "" {
 		return errors.New("detached HEAD — there is no branch to move")

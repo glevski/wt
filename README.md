@@ -220,6 +220,10 @@ carries your tweaks into a properly named worktree and jumps there.
 - `wt base update [name]` — fetch and fast-forward bases to their upstreams
   (ff-only: can never lose anything; dirty, drifted or diverged bases are
   skipped with a note)
+- `wt base reset [--hard] [name]` — hard-sync a base to its upstream tip,
+  backward moves included (accidental local commit, force-pushed upstream).
+  Local changes block it; `--hard` discards tracked changes and keeps
+  untracked files. No name needed when you're standing inside the base.
 
 Bases show **orange** names in `list`/`status`. wt can't stop git from
 switching a base's branch — instead it *tells* you: a drifted base (checked
