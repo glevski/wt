@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -33,19 +34,69 @@ func list(dir string, args []string) error {
 	return renderWorktrees(ws, nil)
 }
 
+// listRow is one worktree with the metadata the table (and its ordering)
+// needs.
+type listRow struct {
+	wt         git.Worktree
+	isBase     bool
+	baseBranch string
+	created    time.Time
+	createdOK  bool
+	checkout   time.Time
+	checkoutOK bool
+}
+
 // renderWorktrees prints the worktree table, optionally filtered by keep.
+// Order: root repo first, then base worktrees, then the rest — within each
+// group by most recent checkout, then most recently created, then name.
 func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
-	var worktrees []git.Worktree
+	mainPath := ws.repo.Worktrees[0].Path
+	var entries []listRow
 	for _, wt := range ws.repo.Worktrees {
-		if keep == nil || keep(wt) {
-			worktrees = append(worktrees, wt)
+		if keep != nil && !keep(wt) {
+			continue
 		}
+		row := listRow{wt: wt}
+		row.baseBranch, row.isBase = git.ReadBaseMark(wt.Path)
+		row.created, row.createdOK = git.CreatedAt(wt.Path)
+		row.checkout, row.checkoutOK = git.CheckoutStamp(wt.Path)
+		entries = append(entries, row)
 	}
 
-	states := make([]string, len(worktrees))
+	group := func(r listRow) int {
+		switch {
+		case r.wt.Path == mainPath:
+			return 0
+		case r.isBase:
+			return 1
+		default:
+			return 2
+		}
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		a, b := entries[i], entries[j]
+		if ga, gb := group(a), group(b); ga != gb {
+			return ga < gb
+		}
+		if a.checkoutOK != b.checkoutOK {
+			return a.checkoutOK
+		}
+		if a.checkoutOK && !a.checkout.Equal(b.checkout) {
+			return a.checkout.After(b.checkout)
+		}
+		if a.createdOK != b.createdOK {
+			return a.createdOK
+		}
+		if a.createdOK && !a.created.Equal(b.created) {
+			return a.created.After(b.created)
+		}
+		return filepath.Base(a.wt.Path) < filepath.Base(b.wt.Path)
+	})
+
+	states := make([]string, len(entries))
 	var wg sync.WaitGroup
-	for i, wt := range worktrees {
-		if wt.Bare {
+	for i, e := range entries {
+		if e.wt.Bare {
 			states[i] = "bare"
 			continue
 		}
@@ -53,19 +104,18 @@ func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
 		go func(i int, path string) {
 			defer wg.Done()
 			states[i] = worktreeState(path)
-		}(i, wt.Path)
+		}(i, e.wt.Path)
 	}
 	wg.Wait()
 
-	mainPath := ws.repo.Worktrees[0].Path
 	current := ws.repo.Current()
 	header := []string{"NAME", "BRANCH", "STATE", "COMMIT", "CREATED", "CHECKOUT"}
-	rows := make([][]string, len(worktrees))
-	rowColors := make([][]string, len(worktrees))
-	markers := make([]string, len(worktrees))
-	for i, wt := range worktrees {
-		baseBranch, isBase := git.ReadBaseMark(wt.Path)
-		drifted := isBase && wt.Branch != baseBranch
+	rows := make([][]string, len(entries))
+	rowColors := make([][]string, len(entries))
+	markers := make([]string, len(entries))
+	for i, e := range entries {
+		wt := e.wt
+		drifted := e.isBase && wt.Branch != e.baseBranch
 		branch := wt.Branch
 		if wt.Detached {
 			branch = "(detached)"
@@ -79,10 +129,10 @@ func renderWorktrees(ws *workspace, keep func(git.Worktree) bool) error {
 		}
 		rows[i] = []string{
 			filepath.Base(wt.Path), branch, states[i], commit,
-			when(git.CreatedAt(wt.Path)), when(git.CheckoutStamp(wt.Path)),
+			when(e.created, e.createdOK), when(e.checkout, e.checkoutOK),
 		}
 		colors := make([]string, len(header))
-		colors[0] = worktreeColor(wt.Path == mainPath, strings.HasPrefix(wt.Path, ws.root+"/"), isBase)
+		colors[0] = worktreeColor(wt.Path == mainPath, strings.HasPrefix(wt.Path, ws.root+"/"), e.isBase)
 		if drifted {
 			colors[1] = ansiRed
 		}

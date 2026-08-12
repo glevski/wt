@@ -2,9 +2,11 @@ package cli
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"wt/internal/git"
 	"wt/internal/gittest"
 )
 
@@ -50,6 +52,34 @@ func TestList(t *testing.T) {
 	_, sideRow = listRows(t, out.String(), filepath.Base(repo))
 	if strings.Contains(sideRow, "-") {
 		t.Errorf("side row after checkout = %q, want no empty cells", sideRow)
+	}
+}
+
+func TestListOrder(t *testing.T) {
+	repo := linkedRepo(t)
+	wtRoot(t)
+	setupOutputs(t)
+	gittest.Git(t, repo, "branch", "staging")
+	if err := base(repo, []string{"add", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	alpha := filepath.Join(t.TempDir(), "alpha")
+	beta := filepath.Join(t.TempDir(), "beta")
+	gittest.Git(t, repo, "worktree", "add", "-b", "alpha", alpha)
+	gittest.Git(t, repo, "worktree", "add", "-b", "beta", beta)
+	git.TouchCheckoutStamp(beta) // beta was visited, alpha never
+
+	out, _ := setupOutputs(t)
+	if err := list(repo, nil); err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n")[1:] {
+		names = append(names, strings.Fields(line[2:])[0])
+	}
+	want := []string{filepath.Base(repo), "staging", "beta", "alpha"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("row order = %v, want %v (root, bases, then by last checkout)", names, want)
 	}
 }
 

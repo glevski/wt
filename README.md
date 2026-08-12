@@ -187,6 +187,9 @@ shows `-`). `CHECKOUT` is the last time wt jumped there — via `checkout`/`ch`
 or a `-c` flag — recorded as a stamp file in the worktree's git admin dir, so
 it starts as `-` and travels/dies with the worktree.
 
+Rows are ordered for scanning: the root repo first, then base branches, then
+everything else by most recent checkout (most recently created as tiebreak).
+
 On a terminal, names are colored by kind — in `list` and in `status`'s
 worktree line alike: **cyan** for the main checkout, **green** for wt-managed
 worktrees (under the workspace root), **magenta** for worktrees created
