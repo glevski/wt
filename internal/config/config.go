@@ -19,6 +19,40 @@ func Deps(repoDir string) []string {
 	return strings.Split(out, "\n")
 }
 
+// Alias returns the words a user-defined alias (`git config wt.alias.<name>`)
+// expands to, nil when undefined. Works outside repos too: git then reads
+// only the global config.
+func Alias(dir, name string) []string {
+	out, err := git.Run(dir, "config", "--get", "wt.alias."+name)
+	if err != nil || out == "" {
+		return nil
+	}
+	return strings.Fields(out)
+}
+
+// Aliases returns all defined aliases as {name, expansion} pairs, keeping
+// git's order; for a name set in both global and local config the local
+// value wins, matching what Alias resolves.
+func Aliases(dir string) [][2]string {
+	out, err := git.Run(dir, "config", "--get-regexp", `^wt\.alias\.`)
+	if err != nil || out == "" {
+		return nil
+	}
+	index := make(map[string]int)
+	var pairs [][2]string
+	for _, line := range strings.Split(out, "\n") {
+		key, value, _ := strings.Cut(line, " ")
+		name := strings.TrimPrefix(key, "wt.alias.")
+		if i, seen := index[name]; seen {
+			pairs[i][1] = value
+			continue
+		}
+		index[name] = len(pairs)
+		pairs = append(pairs, [2]string{name, value})
+	}
+	return pairs
+}
+
 // CopyIgnored reports whether create/fork should copy git-ignored files
 // (.env, node_modules, …) into new worktrees so they are runnable
 // immediately. Default true; disable with `git config wt.copyignored false`.

@@ -13,6 +13,7 @@ func TestShellInit(t *testing.T) {
 	fn := out.String()
 	for _, want := range []string{"wt() {", "checkout|ch|create|fork|home|switch|peek|unpeek) _wt_jump=1 ;;",
 		`root) case "$2" in checkout|ch|create|fork) _wt_jump=1 ;; esac ;;`,
+		`"$_wt_bin" __jump-alias "$1" "$2"`,
 		`eval "$_wt_script"`, `_wt_prev="$PWD"`, `WT_PREV="${_wt_prev:-}"`,
 		"WT_WRAPPER_VERSION=" + wrapperVersion + " ",
 		"_describe", "autoload -Uz compinit", "compdef _wt wt worktree"} {

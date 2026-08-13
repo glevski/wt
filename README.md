@@ -271,6 +271,25 @@ worktrees (under the workspace root), **magenta** for worktrees created
 elsewhere by other tools (e.g. `.claude/worktrees`). Piped output and
 `NO_COLOR` stay plain.
 
+### `wt alias` — your own commands
+
+Git-style aliases: name your favorite invocations and wt expands them, typed
+arguments appended. Builtins always win over an alias of the same name.
+
+```sh
+wt alias add cr create -c      # wt cr feature  →  wt create -c feature
+wt alias add stg status -g
+wt alias rm cr
+wt alias                       # list them
+```
+
+`add`/`rm` write your **global** git config (`wt.alias.<name>`) — aliases are
+a habit, not a project property — but any config scope works, so a per-repo
+alias is just `git config wt.alias.stg "status -g"`. Aliases tab-complete
+like the command they expand to, and an alias of a jump command (`create`,
+`checkout`, `peek`, …) cd's exactly like the real thing: the shell wrapper
+asks the binary whether an unknown first word is a jump alias.
+
 ## Peek — look at any revision without touching anything
 
 ```sh

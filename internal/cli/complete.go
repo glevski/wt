@@ -41,8 +41,15 @@ var commandMenu = []string{
 	"deps:manage dependency paths copied to new worktrees",
 	"peek:snapshot a revision into a disposable directory",
 	"unpeek:return from the peek and delete it",
+	"alias:manage your command aliases",
 	"init:print shell integration",
 	"prompt:print a colored prompt segment for shell themes",
+}
+
+var aliasMenu = []string{
+	"add:define an alias for a wt command",
+	"rm:remove an alias",
+	"list:show defined aliases",
 }
 
 var depsMenu = []string{
@@ -69,7 +76,7 @@ var rootMenu = []string{
 
 func completionCandidates(dir string, words []string) []string {
 	if len(words) == 0 {
-		return commandMenu
+		return append(slices.Clone(commandMenu), definedAliases(dir)...)
 	}
 	cmd, rest := words[0], words[1:]
 	switch cmd {
@@ -121,12 +128,37 @@ func completionCandidates(dir string, words []string) []string {
 			return rootMenu
 		}
 		return completionCandidates(dir, rest)
+	case "alias":
+		if len(rest) == 0 {
+			return aliasMenu
+		}
+		if rest[0] == "rm" {
+			var names []string
+			for _, p := range config.Aliases(dir) {
+				names = append(names, p[0])
+			}
+			return names
+		}
+		return nil
 	case "init":
 		return []string{"zsh", "bash"}
 	case "prompt":
 		return []string{"zsh"}
 	}
+	// an alias completes like what it expands to
+	if exp := config.Alias(dir, cmd); len(exp) > 0 && builtinNames[exp[0]] {
+		return completionCandidates(dir, append(exp, rest...))
+	}
 	return nil
+}
+
+// definedAliases renders the user's aliases as first-word menu entries.
+func definedAliases(dir string) []string {
+	var out []string
+	for _, p := range config.Aliases(dir) {
+		out = append(out, p[0]+":alias for '"+p[1]+"'")
+	}
+	return out
 }
 
 // peekNames lists existing peek directory basenames.

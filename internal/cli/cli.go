@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"wt/internal/config"
 )
 
 const usage = `worktree — fast git worktree manager (alias it to wt via "init")
@@ -63,6 +65,9 @@ Usage:
   wt deps [cmd]         manage dependency paths (node_modules, …) copied into
                         new worktrees in the background: add <path>, rm <path>,
                         list (default), sync [name] (re-copy, foreground)
+  wt alias [cmd]        your own command aliases, git-style (stored as git
+                        config wt.alias.*): add <name> <command...>, rm <name>,
+                        list (default) — e.g. wt alias add cr create -c
   wt init <zsh|bash>    print the wt() shell function and tab completion;
                         add to your rc file: eval "$(worktree init zsh)"
   wt prompt zsh         print the "<project> (<branch>)" segment for your
@@ -125,42 +130,76 @@ func dispatch(cmd string, args []string) error {
 	if err != nil {
 		return err
 	}
+	if handled, err := runBuiltin(cwd, cmd, args); handled {
+		return err
+	}
+	if words := config.Alias(cwd, cmd); len(words) > 0 {
+		if !builtinNames[words[0]] {
+			return fmt.Errorf("alias '%s' expands to unknown command %q", cmd, words[0])
+		}
+		return dispatch(words[0], append(words[1:], args...))
+	}
+	return fmt.Errorf("unknown command %q, see: wt help", cmd)
+}
+
+func runBuiltin(cwd, cmd string, args []string) (bool, error) {
+	run := func(err error) (bool, error) { return true, err }
 	switch cmd {
 	case "create":
-		return create(cwd, args)
+		return run(create(cwd, args))
 	case "fork":
-		return fork(cwd, args)
+		return run(fork(cwd, args))
 	case "checkout", "ch":
-		return checkout(cwd, args)
+		return run(checkout(cwd, args))
 	case "home":
-		return home(cwd, args)
+		return run(home(cwd, args))
 	case "root":
-		return root(cwd, args)
+		return run(root(cwd, args))
 	case "base":
-		return base(cwd, args)
+		return run(base(cwd, args))
 	case "list", "ls":
-		return list(cwd, args)
+		return run(list(cwd, args))
 	case "status":
-		return status(cwd, args)
+		return run(status(cwd, args))
 	case "remove", "rm":
-		return remove(cwd, args)
+		return run(remove(cwd, args))
 	case "reset":
-		return reset(cwd, args)
+		return run(reset(cwd, args))
 	case "link":
-		return link(cwd, args)
+		return run(link(cwd, args))
 	case "deps":
-		return deps(cwd, args)
+		return run(deps(cwd, args))
 	case "peek":
-		return peek(cwd, args)
+		return run(peek(cwd, args))
 	case "unpeek":
-		return peek(cwd, append([]string{"off"}, args...))
+		return run(peek(cwd, append([]string{"off"}, args...)))
 	case "prompt":
-		return prompt(cwd, args)
+		return run(prompt(cwd, args))
+	case "alias":
+		return run(alias(cwd, args))
+	case "__jump-alias":
+		return run(jumpAlias(cwd, args))
 	case "complete":
-		return complete(cwd, args)
-	default:
-		return fmt.Errorf("unknown command %q, see: wt help", cmd)
+		return run(complete(cwd, args))
 	}
+	return false, nil
+}
+
+// builtinNames are the commands an alias may expand to; builtins always win
+// over an alias of the same name, like in git.
+var builtinNames = map[string]bool{
+	"create": true, "fork": true, "checkout": true, "ch": true, "home": true,
+	"switch": true, "root": true, "base": true, "list": true, "ls": true,
+	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
+	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
+	"init": true,
+}
+
+// jumpCommands emit a cd script on stdout; the shell wrapper must capture
+// and eval it. Keep in sync with the case list in shellinit.go.
+var jumpCommands = map[string]bool{
+	"checkout": true, "ch": true, "create": true, "fork": true,
+	"home": true, "switch": true, "peek": true, "unpeek": true,
 }
 
 // logf prints one line of human-facing narration.
