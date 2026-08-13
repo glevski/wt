@@ -35,6 +35,63 @@ func TestBaseAdd(t *testing.T) {
 	}
 }
 
+// baseAddEnvFixture: a repo with an ignored .env and a declared node_modules
+// dep, plus a "staging" branch ready to become a base.
+func baseAddEnvFixture(t *testing.T) (repo, root string) {
+	t.Helper()
+	repo, root = depsFixture(t)
+	gittest.Git(t, repo, "branch", "staging")
+	return repo, root
+}
+
+func TestBaseAddCopiesIgnoredButNotDeps(t *testing.T) {
+	repo, root := baseAddEnvFixture(t)
+	setupOutputs(t)
+
+	if err := base(repo, []string{"add", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "staging")
+	if got, err := os.ReadFile(filepath.Join(path, ".env")); err != nil || string(got) != "SECRET=1" {
+		t.Errorf(".env not copied into the base: %q, %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(path, "node_modules")); !os.IsNotExist(err) {
+		t.Error("declared dep copied into the base by default")
+	}
+	if state, ok := git.DepsState(path); ok && strings.HasPrefix(state, "copying") {
+		t.Errorf("deps worker started for a base: state = %q", state)
+	}
+}
+
+func TestBaseAddNoIgnored(t *testing.T) {
+	repo, root := baseAddEnvFixture(t)
+	setupOutputs(t)
+
+	if err := base(repo, []string{"add", "--no-ignored", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "staging")
+	if _, err := os.Stat(filepath.Join(path, ".env")); !os.IsNotExist(err) {
+		t.Error(".env copied despite --no-ignored")
+	}
+}
+
+func TestBaseAddWithDeps(t *testing.T) {
+	repo, root := baseAddEnvFixture(t)
+	setupOutputs(t)
+
+	if err := base(repo, []string{"add", "--deps", "-w", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	path := worktreePath(root, "proj", "staging")
+	if _, err := os.Stat(filepath.Join(path, "node_modules/dep/index.js")); err != nil {
+		t.Error("--deps -w did not copy the dep")
+	}
+	if state, _ := git.DepsState(path); state != "done" {
+		t.Errorf("deps state = %q, want done", state)
+	}
+}
+
 func TestBaseAddBusyBranch(t *testing.T) {
 	repo := linkedRepo(t)
 	wtRoot(t)

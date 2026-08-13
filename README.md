@@ -389,6 +389,13 @@ carries your tweaks into a properly named worktree and jumps there.
 - `wt base update [name]` — fetch and fast-forward bases to their upstreams
   (ff-only: can never lose anything; dirty, drifted or diverged bases are
   skipped with a note)
+`base add` seeds the new base with the git-ignored files of the worktree you
+run it from (`.env` and friends), so it is readable and runnable right away —
+but **not** the declared [deps](#deps--big-dependencies-copied-in-the-background):
+a base is a launch pad, not a build directory. `--deps` (with `-w` to wait)
+opts them in, `wt deps sync <name>` adds them later, and `--no-ignored` copies
+nothing at all.
+
 - `wt base reset [--hard] [name]` — restore a base to its pristine state:
   a drifted base gets its own branch checked out again, then the branch is
   hard-synced to the upstream tip, backward moves included (accidental local

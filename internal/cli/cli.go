@@ -52,7 +52,10 @@ Usage:
                         checkout|ch <project>[/<wt>] (jump there)
   wt base [cmd]         manage base branches — permanent view-only worktrees
                         for long-lived branches you fork real work off:
-                        add <branch>, list (default), rm [-f] <name>,
+                        add <branch> (seeds it with the git-ignored files of
+                        the current worktree; --no-ignored skips that,
+                        --deps [-w] also copies declared deps),
+                        list (default), rm [-f] <name>,
                         update [name] (fast-forward to upstream),
                         reset [--hard] [name] (hard-sync to upstream)
   wt list               list this repo's worktrees (alias: ls)

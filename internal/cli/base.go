@@ -11,7 +11,7 @@ import (
 	"wt/internal/git"
 )
 
-const baseUsage = "usage: wt base [add <branch> | list | rm [-f] <name> | update [name] | reset [--hard] [name]]"
+const baseUsage = "usage: wt base [add [--no-ignored] [--deps [-w]] <branch> | list | rm [-f] <name> | update [name] | reset [--hard] [name]]"
 
 // base manages base branches: permanent, view-only worktrees for long-lived
 // branches (main/staging/dev). You jump in to look around, then fork real
@@ -39,10 +39,22 @@ func base(dir string, args []string) error {
 	}
 }
 
+// baseAdd creates the base worktree and seeds it with the git-ignored files
+// of the worktree you run it from (.env and friends), so a base is readable
+// and runnable straight away. Declared deps are the exception: a base is a
+// launch pad, not a build directory — --deps opts them in, and wt deps sync
+// adds them later.
 func baseAdd(dir string, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: wt base add <branch>")
+	fs := flag.NewFlagSet("wt base add", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	noIgnored := fs.Bool("no-ignored", false, "copy no ignored files at all")
+	withDeps := fs.Bool("deps", false, "also copy declared deps")
+	wait := fs.Bool("w", false, "copy deps synchronously")
+	fs.BoolVar(wait, "wait", false, "copy deps synchronously")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
+		return errors.New("usage: wt base add [--no-ignored] [--deps [-w]] <branch>")
 	}
+	args = fs.Args()
 	ws, err := loadWorkspace(dir)
 	if err != nil {
 		return err
@@ -85,6 +97,7 @@ func baseAdd(dir string, args []string) error {
 			"branch '%s' not found locally or on any remote", branch)
 	}
 	git.WriteBaseMark(path, branch)
+	copyEnvironment(ws, path, envOptions{noIgnored: *noIgnored, noDeps: !*withDeps, wait: *wait})
 	logf("added base '%s' at %s", branch, path)
 	logf("jump with: wt ch %s — fork real work off it with: wt fork %s", dirName(branch), branch)
 	return nil
