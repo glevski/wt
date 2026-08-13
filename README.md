@@ -13,7 +13,10 @@ echo 'eval "$(worktree init zsh)"' >> ~/.zshrc   # or: init bash
 ```
 
 `wt --version` reports the release tag and commit the binary was built from
-(`make install` stamps them via git describe).
+(`make install` stamps them via `git describe`). Building outside a checkout —
+from a `git archive` tarball, say, which carries no `.git` — leaves nothing to
+stamp and yields `wt dev`; pass the values in instead:
+`make install VERSION=0.0.11 COMMIT=7af004a`.
 
 The `init` step is what makes `wt ch` able to actually `cd` you — a child
 process can never change its parent shell's directory, so `init` emits a small
