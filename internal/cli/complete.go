@@ -37,6 +37,7 @@ var commandMenu = []string{
 	"git-log:run git log in a worktree",
 	"remove:remove a worktree",
 	"rm:remove a worktree (alias)",
+	"finish:jump back where you came from, optionally deleting the worktree",
 	"reset:move the branch back to its base",
 	"link:link the repo to a project name",
 	"deps:manage dependency paths copied to new worktrees",
@@ -141,6 +142,9 @@ func completionCandidates(dir string, words []string) []string {
 			return names
 		}
 		return nil
+	case "finish":
+		return []string{"-d:also delete the worktree", "-b:also delete the branch (needs -d)",
+			"-f:discard local changes"}
 	case "init":
 		return []string{"zsh", "bash"}
 	case "prompt":

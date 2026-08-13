@@ -224,6 +224,23 @@ never the root, bases, external tools' worktrees, or the one you're standing
 in — and always print the matches and ask `[y/N]` first; only a plain `y`
 proceeds. `-f`/`-b` apply to every match.
 
+### `wt finish [-d] [-b] [-f]`
+
+The "I'm done here" command. Jumps back to the last location this shell
+jumped from (the same per-shell state `wt switch` uses), or home when there
+is none — and, on request, cleans up on the way out:
+
+```sh
+wt finish            # just go back — the worktree stays
+wt finish -d         # …and delete the worktree (branch kept)
+wt finish -d -b      # …and delete its branch too (safe delete)
+wt finish -d -f      # discard local changes; -f -b force-deletes nothing extra
+```
+
+`-b` needs `-d`. Local changes block `-d` unless `-f`; the main checkout and
+(with `-d`) base worktrees refuse. If the remembered location is inside the
+worktree being deleted, finish lands you home instead.
+
 ### `wt status [name]`
 
 Shows a worktree — the current one by default, or any worktree by name

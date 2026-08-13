@@ -59,6 +59,11 @@ Usage:
                         -b also deletes its branch when merged (alias: rm).
                         A quoted glob ('dev-*', '*') bulk-removes matching
                         wt-managed worktrees after listing and confirmation
+  wt finish [-d] [-b] [-f]  wrap up the current worktree: jump back to the
+                        last location this shell jumped from (home when there
+                        is none); -d/--delete also removes the worktree,
+                        -b/--branch also deletes its branch (needs -d),
+                        -f/--force discards local changes
   wt reset [--hard] [base]  move the worktree's branch back to its base
                         branch's tip (recorded at creation), staying on the
                         branch; refuses with local changes unless --hard
@@ -172,6 +177,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(gitLog(cwd, args))
 	case "remove", "rm":
 		return run(remove(cwd, args))
+	case "finish":
+		return run(finish(cwd, args))
 	case "reset":
 		return run(reset(cwd, args))
 	case "link":
@@ -201,7 +208,7 @@ var builtinNames = map[string]bool{
 	"switch": true, "root": true, "base": true, "list": true, "ls": true,
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
-	"git-log": true, "init": true,
+	"git-log": true, "finish": true, "init": true,
 }
 
 // jumpCommands emit a cd script on stdout; the shell wrapper must capture
@@ -209,6 +216,7 @@ var builtinNames = map[string]bool{
 var jumpCommands = map[string]bool{
 	"checkout": true, "ch": true, "create": true, "fork": true,
 	"home": true, "switch": true, "peek": true, "unpeek": true,
+	"finish": true,
 }
 
 // logf prints one line of human-facing narration.

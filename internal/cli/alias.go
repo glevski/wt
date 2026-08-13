@@ -104,20 +104,24 @@ func reservedName(name string) bool {
 	return builtinNames[name] || name == "help" || name == "complete"
 }
 
-// jumpAlias is wrapper plumbing: the shell function asks whether an unknown
-// first word aliases a jump command, so it knows to capture stdout and eval
-// the jump script. Prints "1" when it does; silent otherwise.
+// jumpAlias is wrapper plumbing: for a first word missing from the wrapper's
+// static case lists, the shell function asks whether stdout must be captured
+// and eval'd. It answers for user aliases and for jump builtins added after
+// the wrapper was eval'd, so new commands work without a re-source. Prints
+// "1" for a jump; silent otherwise.
 func jumpAlias(dir string, args []string) error {
-	if len(args) == 0 || reservedName(args[0]) {
-		// a builtin outranks any same-named alias — even one an older
-		// wrapper's static case list doesn't know about yet
+	if len(args) == 0 {
 		return nil
 	}
-	words := config.Alias(dir, args[0])
-	if len(words) == 0 {
+	var full []string
+	if reservedName(args[0]) {
+		// a builtin outranks any same-named alias
+		full = append([]string{args[0]}, args[1:]...)
+	} else if full = config.Alias(dir, args[0]); len(full) == 0 {
 		return nil
+	} else {
+		full = append(full, args[1:]...)
 	}
-	full := append(words, args[1:]...)
 	jump := jumpCommands[full[0]]
 	if full[0] == "root" && len(full) > 1 {
 		switch full[1] {

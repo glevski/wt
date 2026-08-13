@@ -52,7 +52,7 @@ func remove(dir string, args []string) error {
 	if state, ok := git.DepsState(wt.Path); ok && strings.HasPrefix(state, "copying") && !*force {
 		return hintf("wait for it, or discard with: wt rm -f "+name, "'%s' is still syncing deps", name)
 	}
-	return removeWorktree(ws, wt, *force, *deleteBranch)
+	return removeWorktree(ws, wt, *force, *deleteBranch, "wt rm -f "+name+" discards them")
 }
 
 // removeMatching is the wildcard path: collect removable wt-managed matches,
@@ -108,7 +108,8 @@ func removeMatching(ws *workspace, pattern string, force, deleteBranch bool) err
 
 	failed := 0
 	for _, wt := range candidates {
-		if err := removeWorktree(ws, wt, force, deleteBranch); err != nil {
+		hint := "wt rm -f " + filepath.Base(wt.Path) + " discards them"
+		if err := removeWorktree(ws, wt, force, deleteBranch, hint); err != nil {
 			logf("%s: %v", filepath.Base(wt.Path), err)
 			failed++
 		}
@@ -123,8 +124,9 @@ func removeMatching(ws *workspace, pattern string, force, deleteBranch bool) err
 	return fmt.Errorf("%d of %d removals failed", failed, len(candidates))
 }
 
-// removeWorktree removes one worktree (guards already done by the caller).
-func removeWorktree(ws *workspace, wt *git.Worktree, force, deleteBranch bool) error {
+// removeWorktree removes one worktree (guards already done by the caller);
+// forceHint names the caller's own force flag for the dirty-worktree error.
+func removeWorktree(ws *workspace, wt *git.Worktree, force, deleteBranch bool, forceHint string) error {
 	name := filepath.Base(wt.Path)
 	stopDepsWorker(wt.Path)
 	removeArgs := []string{"worktree", "remove"}
@@ -133,7 +135,7 @@ func removeWorktree(ws *workspace, wt *git.Worktree, force, deleteBranch bool) e
 	}
 	if _, err := git.Run(ws.dir(), append(removeArgs, wt.Path)...); err != nil {
 		if !force {
-			return hintf(fmt.Sprintf("wt rm -f %s discards them", name), "%v", err)
+			return hintf(forceHint, "%v", err)
 		}
 		return err
 	}

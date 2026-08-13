@@ -165,6 +165,9 @@ func TestJumpAliasProbe(t *testing.T) {
 		// a hand-set alias shadowing a builtin never wins, so it must not
 		// make the wrapper capture stdout either
 		{[]string{"git-log", ""}, ""},
+		// jump builtins missing from an older wrapper's static case list
+		// are answered too — new commands jump without a re-source
+		{[]string{"finish", "-d"}, "1\n"},
 	} {
 		out, _ := setupOutputs(t)
 		if err := jumpAlias(repo, c.args); err != nil {
