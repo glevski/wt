@@ -23,6 +23,7 @@ func TestStatusInMainWorktree(t *testing.T) {
 		"worktree  " + filepath.Base(repo) + " (home)",
 		"branch    main",
 		"commit    " + sha + "  wt-test, ", // author and relative date follow the sha
+		": initial\n",                      // …then the commit subject
 		"path      " + repo,
 	} {
 		if !strings.Contains(got, want) {
@@ -80,6 +81,26 @@ func TestStatusNamedWorktree(t *testing.T) {
 	}
 	if !strings.Contains(got, "dirty.txt") {
 		t.Errorf("git status part not run in the named worktree:\n%s", got)
+	}
+}
+
+func TestStatusTruncatesLongSubject(t *testing.T) {
+	repo := linkedRepo(t)
+	wtRoot(t)
+	long := strings.Repeat("na", 30) + " batman"
+	gittest.WriteFile(t, repo, "f.txt", "x")
+	gittest.Commit(t, repo, long)
+	out, _ := setupOutputs(t)
+
+	if err := status(repo, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := ": " + long[:40] + "…"
+	if !strings.Contains(out.String(), want) {
+		t.Errorf("status output missing truncated subject %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "batman") {
+		t.Errorf("subject not truncated:\n%s", out.String())
 	}
 }
 

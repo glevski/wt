@@ -91,8 +91,13 @@ func status(dir string, args []string) error {
 		branch = ansiRed + branch + ansiReset
 	}
 	commit := shortSHA(current.Head)
-	if info, err := git.Run(ws.dir(), "log", "-1", "--format=%an, %ar", current.Head); err == nil && info != "" {
-		commit += "  " + info
+	// \x1f keeps author/date and subject splittable whatever they contain
+	if info, err := git.Run(ws.dir(), "log", "-1", "--format=%an, %ar\x1f%s", current.Head); err == nil && info != "" {
+		meta, subject, _ := strings.Cut(info, "\x1f")
+		commit += "  " + meta
+		if subject != "" {
+			commit += ": " + truncate(subject, 40)
+		}
 	}
 	fmt.Fprintf(stdout, "project   %s\n", project)
 	fmt.Fprintf(stdout, "worktree  %s\n", name)
@@ -112,4 +117,13 @@ func status(dir string, args []string) error {
 	// git inherits our stdout/stderr so it does its own TTY detection —
 	// colors and status config behave exactly like a hand-typed git status.
 	return git.RunPassthrough(statusDir, stdout, stderr, "status")
+}
+
+// truncate caps s at max runes, marking the cut with an ellipsis.
+func truncate(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "…"
 }
