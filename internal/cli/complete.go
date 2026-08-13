@@ -30,6 +30,7 @@ var commandMenu = []string{
 	"home:jump to the main checkout",
 	"switch:toggle current and previous location",
 	"root:run a command in the root repo's context",
+	"global:work with linked projects from anywhere",
 	"base:manage base branches",
 	"list:list worktrees",
 	"ls:list worktrees (alias)",
@@ -67,6 +68,15 @@ var baseMenu = []string{
 	"rm:remove a base worktree",
 	"update:fast-forward bases to their upstreams",
 	"reset:hard-sync a base to its upstream",
+}
+
+var globalMenu = []string{
+	"list:all projects, or one project's worktrees",
+	"ls:list (alias)",
+	"status:status of a project or its worktree",
+	"git-log:git log in a project or its worktree",
+	"checkout:jump to a project or its worktree",
+	"ch:jump to a project (alias)",
 }
 
 var rootMenu = []string{
@@ -130,6 +140,17 @@ func completionCandidates(dir string, words []string) []string {
 			return rootMenu
 		}
 		return completionCandidates(dir, rest)
+	case "global":
+		if len(rest) == 0 {
+			return globalMenu
+		}
+		switch rest[0] {
+		case "list", "ls", "status", "git-log", "checkout", "ch":
+			if len(rest) == 1 {
+				return projectNames(dir)
+			}
+		}
+		return nil
 	case "alias":
 		if len(rest) == 0 {
 			return aliasMenu
@@ -155,6 +176,16 @@ func completionCandidates(dir string, words []string) []string {
 		return completionCandidates(dir, append(exp, rest...))
 	}
 	return nil
+}
+
+// projectNames lists registered project names, unvalidated — completion
+// must stay fast and side-effect-free.
+func projectNames(dir string) []string {
+	var names []string
+	for _, p := range config.Projects(dir) {
+		names = append(names, p[0])
+	}
+	return names
 }
 
 // definedAliases renders the user's aliases as first-word menu entries.

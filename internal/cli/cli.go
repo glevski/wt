@@ -44,6 +44,12 @@ Usage:
   wt root <cmd> [args]  run status, checkout, create or fork in the root
                         repo's context, e.g. wt root fork -c forks the root's
                         current state from wherever you stand
+  wt global <cmd>       work with registered projects (wt link -r) from
+                        anywhere, no repo needed: list [project] (all
+                        projects, or one project's worktrees),
+                        status [-g] <project>[/<wt>],
+                        git-log <project>[/<wt>] [args...],
+                        checkout|ch <project>[/<wt>] (jump there)
   wt base [cmd]         manage base branches — permanent view-only worktrees
                         for long-lived branches you fork real work off:
                         add <branch>, list (default), rm [-f] <name>,
@@ -67,8 +73,11 @@ Usage:
   wt reset [--hard] [base]  move the worktree's branch back to its base
                         branch's tip (recorded at creation), staying on the
                         branch; refuses with local changes unless --hard
-  wt link [name]        link this repo to a project name (stored in git config
-                        wt.name); without an argument, show the current link
+  wt link [-r] [name]   link this repo to a project name (stored in git config
+                        wt.name); -r/--register also adds it to the global
+                        registry that wt global works from (bare wt link -r
+                        registers an already linked repo); with no arguments,
+                        show the current link
   wt deps [cmd]         manage dependency paths (node_modules, …) copied into
                         new worktrees in the background: add <path>, rm <path>,
                         list (default), sync [name] (re-copy, foreground)
@@ -167,6 +176,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(home(cwd, args))
 	case "root":
 		return run(root(cwd, args))
+	case "global":
+		return run(global(cwd, args))
 	case "base":
 		return run(base(cwd, args))
 	case "list", "ls":
@@ -205,7 +216,7 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 // over an alias of the same name, like in git.
 var builtinNames = map[string]bool{
 	"create": true, "fork": true, "checkout": true, "ch": true, "home": true,
-	"switch": true, "root": true, "base": true, "list": true, "ls": true,
+	"switch": true, "root": true, "global": true, "base": true, "list": true, "ls": true,
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
 	"git-log": true, "finish": true, "init": true,

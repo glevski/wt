@@ -192,6 +192,28 @@ Runs a command in the **root repo's context** from wherever you stand:
 
 All flags pass through unchanged (`wt root fork -c -n -exp`, …).
 
+### `wt global <cmd>` — your projects from anywhere
+
+Works outside any repo. Register a project once with `wt link -r` (or a bare
+`wt link -r` in an already linked repo — registration is always explicit),
+then from wherever you stand:
+
+```sh
+wt global ls                       # all registered projects:
+                                   #   NAME  WORKTREES  PATH
+wt global ls tickets-app           # that project's full worktree table
+wt global status tickets-app/dev   # wt status as if run there (-g works)
+wt global git-log tickets-app      # git log of the root repo…
+wt global git-log tickets-app/dev --oneline -5   # …or a worktree, args pass through
+wt global ch tickets-app           # jump to the root repo
+wt global ch tickets-app/dev       # jump into a worktree
+```
+
+Project names prefix-match like worktree names do, and tab completion offers
+them. The registry is plain global git config (`wt.project.<name>` → root
+repo path); entries whose repo vanished or was renamed are pruned
+automatically with a note. `wt link` shows whether the repo is registered.
+
 ### `wt switch`
 
 Toggles between where you are and where your last wt jump left from — like

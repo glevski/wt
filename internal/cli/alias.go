@@ -123,11 +123,14 @@ func jumpAlias(dir string, args []string) error {
 		full = append(full, args[1:]...)
 	}
 	jump := jumpCommands[full[0]]
-	if full[0] == "root" && len(full) > 1 {
+	switch {
+	case full[0] == "root" && len(full) > 1:
 		switch full[1] {
 		case "checkout", "ch", "create", "fork":
 			jump = true
 		}
+	case full[0] == "global" && len(full) > 1:
+		jump = full[1] == "checkout" || full[1] == "ch"
 	}
 	if jump {
 		fmt.Fprintln(stdout, "1")

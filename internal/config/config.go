@@ -53,6 +53,49 @@ func Aliases(dir string) [][2]string {
 	return pairs
 }
 
+// Projects returns the globally registered {name, root repo path} pairs
+// (`git config --global wt.project.<name>`), the registry behind wt global.
+// Works outside any repo.
+func Projects(dir string) [][2]string {
+	out, err := git.Run(dir, "config", "--get-regexp", `^wt\.project\.`)
+	if err != nil || out == "" {
+		return nil
+	}
+	index := make(map[string]int)
+	var pairs [][2]string
+	for _, line := range strings.Split(out, "\n") {
+		key, value, _ := strings.Cut(line, " ")
+		name := strings.TrimPrefix(key, "wt.project.")
+		if i, seen := index[name]; seen {
+			pairs[i][1] = value
+			continue
+		}
+		index[name] = len(pairs)
+		pairs = append(pairs, [2]string{name, value})
+	}
+	return pairs
+}
+
+// ProjectPath returns the registered root repo path of a project.
+func ProjectPath(dir, name string) (string, bool) {
+	path, err := git.Run(dir, "config", "--get", "wt.project."+name)
+	if err != nil || path == "" {
+		return "", false
+	}
+	return path, true
+}
+
+// RegisterProject records a project's root repo path in the global registry.
+func RegisterProject(dir, name, path string) error {
+	_, err := git.Run(dir, "config", "--global", "wt.project."+name, path)
+	return err
+}
+
+// UnregisterProject drops a project from the global registry.
+func UnregisterProject(dir, name string) {
+	_, _ = git.Run(dir, "config", "--global", "--unset", "wt.project."+name)
+}
+
 // CopyIgnored reports whether create/fork should copy git-ignored files
 // (.env, node_modules, …) into new worktrees so they are runnable
 // immediately. Default true; disable with `git config wt.copyignored false`.
