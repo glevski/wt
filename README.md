@@ -38,6 +38,26 @@ cd ~/my-repo && wt link myproject
 The name is deliberate, not derived from the directory — it decides where the
 repo's worktrees live and keeps two repos both cloned as `app/` from colliding.
 
+## Shell prompt (optional)
+
+`worktree prompt zsh` prints a ready-made `<project> (<branch>)` prompt
+segment: the *project name* instead of the checkout's folder name (so
+`~/worktrees/app/dev-2` shows as `app`; unlinked repos fall back to the repo
+name, non-git directories to the plain path), with the branch colored in the
+`wt list` palette — cyan in the root repo, green in wt worktrees, orange in
+bases (red when drifted), magenta in external worktrees, and a red
+`peek:<rev>` inside a peek. Wire it into your theme:
+
+```zsh
+setopt PROMPT_SUBST
+_wt_prompt() { GIT_OPTIONAL_LOCKS=0 command worktree prompt zsh 2>/dev/null || print -rn -- '%B%F{cyan}%~%f%b'; }
+PROMPT='%F{green}%n@%m%f: $(_wt_prompt) %B$%b '
+```
+
+The output is pure zsh prompt escapes (`%F{…}`, `%B`), so it renders with
+your terminal's colors and costs one binary call per prompt (~5 ms). Literal
+`%` in names is escaped, so directory names can't inject prompt codes.
+
 ## Commands
 
 ### `wt link [name]`

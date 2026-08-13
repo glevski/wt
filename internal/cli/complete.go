@@ -42,6 +42,7 @@ var commandMenu = []string{
 	"peek:snapshot a revision into a disposable directory",
 	"unpeek:return from the peek and delete it",
 	"init:print shell integration",
+	"prompt:print a colored prompt segment for shell themes",
 }
 
 var depsMenu = []string{
@@ -122,6 +123,8 @@ func completionCandidates(dir string, words []string) []string {
 		return completionCandidates(dir, rest)
 	case "init":
 		return []string{"zsh", "bash"}
+	case "prompt":
+		return []string{"zsh"}
 	}
 	return nil
 }

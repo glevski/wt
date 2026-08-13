@@ -65,6 +65,8 @@ Usage:
                         list (default), sync [name] (re-copy, foreground)
   wt init <zsh|bash>    print the wt() shell function and tab completion;
                         add to your rc file: eval "$(worktree init zsh)"
+  wt prompt zsh         print the "<project> (<branch>)" segment for your
+                        shell prompt, colored like wt list — see the README
 
 create and fork need a linked repo: worktrees are created under
 ~/worktrees/<linked-name>/, overridable with $WT_ROOT or "git config wt.root".
@@ -152,6 +154,8 @@ func dispatch(cmd string, args []string) error {
 		return peek(cwd, args)
 	case "unpeek":
 		return peek(cwd, append([]string{"off"}, args...))
+	case "prompt":
+		return prompt(cwd, args)
 	case "complete":
 		return complete(cwd, args)
 	default:
