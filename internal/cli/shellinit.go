@@ -21,7 +21,7 @@ wt() {
     case "$1" in
         checkout|ch|create|fork|home|switch|peek|unpeek) _wt_jump=1 ;;
         root) case "$2" in checkout|ch|create|fork) _wt_jump=1 ;; esac ;;
-        alias|base|complete|deps|help|init|link|list|ls|prompt|remove|reset|rm|status|-h|--help|"") ;;
+        alias|base|complete|deps|help|init|link|list|ls|prompt|remove|reset|rm|status|version|--version|-h|--help|"") ;;
         *) [ "$("$_wt_bin" __jump-alias "$1" "$2" 2>/dev/null)" = 1 ] && _wt_jump=1 ;;
     esac
     if [ -n "$_wt_jump" ]; then

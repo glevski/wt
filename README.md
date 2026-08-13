@@ -12,6 +12,9 @@ make install                      # builds ~/.local/bin/worktree
 echo 'eval "$(worktree init zsh)"' >> ~/.zshrc   # or: init bash
 ```
 
+`wt --version` reports the release tag and commit the binary was built from
+(`make install` stamps them via git describe).
+
 The `init` step is what makes `wt ch` able to actually `cd` you — a child
 process can never change its parent shell's directory, so `init` emits a small
 `wt()` shell function that wraps the binary and evals the tiny jump script it

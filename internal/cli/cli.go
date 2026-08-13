@@ -70,6 +70,7 @@ Usage:
                         list (default) — e.g. wt alias add cr create -c
   wt init <zsh|bash>    print the wt() shell function and tab completion;
                         add to your rc file: eval "$(worktree init zsh)"
+  wt --version          print the wt version (release tag) and commit
   wt prompt zsh         print the "<project> (<branch>)" segment for your
                         shell prompt, colored like wt list — see the README
 
@@ -103,6 +104,10 @@ func Run(args []string) int {
 	cmd, rest := args[0], args[1:]
 	if cmd == "help" || cmd == "-h" || cmd == "--help" {
 		fmt.Fprint(stdout, usage)
+		return 0
+	}
+	if cmd == "--version" || cmd == "version" {
+		fmt.Fprintln(stdout, versionString())
 		return 0
 	}
 	if err := dispatch(cmd, rest); err != nil {
