@@ -151,6 +151,7 @@ func TestJumpAliasProbe(t *testing.T) {
 	gittest.Git(t, repo, "config", "wt.alias.cr", "create -c")
 	gittest.Git(t, repo, "config", "wt.alias.st", "status")
 	gittest.Git(t, repo, "config", "wt.alias.r", "root")
+	gittest.Git(t, repo, "config", "wt.alias.git-log", "checkout")
 
 	for _, c := range []struct {
 		args []string
@@ -161,6 +162,9 @@ func TestJumpAliasProbe(t *testing.T) {
 		{[]string{"r", "checkout"}, "1\n"},
 		{[]string{"r", "status"}, ""},
 		{[]string{"undefined", ""}, ""},
+		// a hand-set alias shadowing a builtin never wins, so it must not
+		// make the wrapper capture stdout either
+		{[]string{"git-log", ""}, ""},
 	} {
 		out, _ := setupOutputs(t)
 		if err := jumpAlias(repo, c.args); err != nil {

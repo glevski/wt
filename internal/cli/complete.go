@@ -34,6 +34,7 @@ var commandMenu = []string{
 	"list:list worktrees",
 	"ls:list worktrees (alias)",
 	"status:show a worktree",
+	"git-log:run git log in a worktree",
 	"remove:remove a worktree",
 	"rm:remove a worktree (alias)",
 	"reset:move the branch back to its base",
@@ -85,7 +86,7 @@ func completionCandidates(dir string, words []string) []string {
 			return nil // -b names a brand-new branch
 		}
 		return worktreeNames(dir, nil)
-	case "status":
+	case "status", "git-log":
 		return worktreeNames(dir, nil)
 	case "remove", "rm":
 		return worktreeNames(dir, keepRemovable)

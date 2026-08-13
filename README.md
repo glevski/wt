@@ -250,6 +250,14 @@ On branch main-2
 nothing to commit, working tree clean
 ```
 
+### `wt git-log [name]`
+
+`git log` for any worktree without leaving where you stand — `wt git-log
+feature-auth` (unique prefixes work), no name means the current worktree.
+Extra arguments pass straight through, so `wt git-log dev --oneline -5` does
+what you'd expect. Passthrough like `status -g`: your pager, colors and log
+config all apply.
+
 ### `wt list` (alias: `ls`)
 
 ```

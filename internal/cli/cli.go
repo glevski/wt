@@ -53,6 +53,8 @@ Usage:
   wt status [name]      show a worktree (default: the current one) — project
                         link, worktree and path; -g/--git appends git status
                         output as if run there
+  wt git-log [name]     run git log in a worktree (default: the current one);
+                        extra arguments pass through to git log
   wt remove [-f] [-b] <name>  remove a worktree; -f discards local changes,
                         -b also deletes its branch when merged (alias: rm).
                         A quoted glob ('dev-*', '*') bulk-removes matching
@@ -166,6 +168,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(list(cwd, args))
 	case "status":
 		return run(status(cwd, args))
+	case "git-log":
+		return run(gitLog(cwd, args))
 	case "remove", "rm":
 		return run(remove(cwd, args))
 	case "reset":
@@ -197,7 +201,7 @@ var builtinNames = map[string]bool{
 	"switch": true, "root": true, "base": true, "list": true, "ls": true,
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
-	"init": true,
+	"git-log": true, "init": true,
 }
 
 // jumpCommands emit a cd script on stdout; the shell wrapper must capture

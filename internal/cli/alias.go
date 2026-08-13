@@ -108,7 +108,9 @@ func reservedName(name string) bool {
 // first word aliases a jump command, so it knows to capture stdout and eval
 // the jump script. Prints "1" when it does; silent otherwise.
 func jumpAlias(dir string, args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || reservedName(args[0]) {
+		// a builtin outranks any same-named alias — even one an older
+		// wrapper's static case list doesn't know about yet
 		return nil
 	}
 	words := config.Alias(dir, args[0])
