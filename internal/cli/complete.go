@@ -36,6 +36,7 @@ var commandMenu = []string{
 	"ls:list worktrees (alias)",
 	"status:show a worktree",
 	"git-log:run git log in a worktree",
+	"copy:copy a file from another worktree",
 	"remove:remove a worktree",
 	"rm:remove a worktree (alias)",
 	"finish:jump back where you came from, optionally deleting the worktree",
@@ -99,6 +100,11 @@ func completionCandidates(dir string, words []string) []string {
 		return worktreeNames(dir, nil)
 	case "status", "git-log":
 		return worktreeNames(dir, nil)
+	case "copy":
+		if len(rest) > 0 && rest[len(rest)-1] == "--from" {
+			return worktreeNames(dir, nil)
+		}
+		return nil // file paths — the shell knows those better than we do
 	case "remove", "rm":
 		return worktreeNames(dir, keepRemovable)
 	case "create":

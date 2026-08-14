@@ -300,6 +300,23 @@ Extra arguments pass straight through, so `wt git-log dev --oneline -5` does
 what you'd expect. Passthrough like `status -g`: your pager, colors and log
 config all apply.
 
+### `wt copy [-f] [--from <worktree>] <file> [dst]`
+
+Copies one file into the current worktree — from the root repo by default,
+or from any worktree via `--from` (prefix matching like `checkout`). Made for
+the files git doesn't carry across worktrees: `.env`, local configs,
+credentials.
+
+```sh
+wt copy .env                      # root repo's .env → here
+wt copy --from dev-2 .env.local   # from another worktree
+wt copy .env config/.env.dev      # different destination path
+```
+
+Paths are relative to each worktree's root; parent directories are created;
+symlinks and executable bits survive. An existing destination is refused
+unless `-f` overwrites it.
+
 ### `wt list` (alias: `ls`)
 
 ```
