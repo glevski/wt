@@ -1,0 +1,46 @@
+name: release
+
+# Tags are plain versions (0.0.9), so match digits — this skips
+# non-release tags like base-branches-feature.
+on:
+  push:
+    tags: ["[0-9]*.[0-9]*.[0-9]*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Same stamping as `make install` (see Makefile); asset names carry no
+      # version so install.sh can fetch via the stable releases/latest URL.
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          COMMIT="$(git rev-parse --short HEAD)"
+          mkdir -p dist
+          for target in darwin-arm64 darwin-amd64 linux-amd64 linux-arm64; do
+            GOOS="${target%-*}" GOARCH="${target#*-}" CGO_ENABLED=0 \
+              go build -trimpath \
+                -ldflags "-s -w -X wt/internal/cli.version=$VERSION -X wt/internal/cli.commit=$COMMIT" \
+                -o dist/worktree .
+            tar -C dist -czf "dist/worktree-$target.tar.gz" worktree
+            rm dist/worktree
+          done
+          cd dist && sha256sum *.tar.gz > SHA256SUMS
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          dist/worktree-*.tar.gz dist/SHA256SUMS
+          --title "${{ github.ref_name }}" --generate-notes

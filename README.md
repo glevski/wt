@@ -7,8 +7,21 @@ jump between worktrees with a two-letter command.
 
 ## Install
 
+Prebuilt binary (macOS/Linux, checksum-verified, installs to `~/.local/bin`):
+
+```sh
+curl -fsSL https://github.com/nithenz/wt/raw/main/install.sh | sh
+```
+
+Or from a checkout:
+
 ```sh
 make install                      # builds ~/.local/bin/worktree
+```
+
+Either way, wire up the shell function:
+
+```sh
 echo 'eval "$(worktree init zsh)"' >> ~/.zshrc   # or: init bash
 ```
 
