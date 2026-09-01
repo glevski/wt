@@ -62,6 +62,8 @@ var depsMenu = []string{
 	"rm:remove a declared dep",
 	"sync:re-sync deps into a worktree",
 	"eject:own the deps instead of sharing hardlinks",
+	"link:re-link deps to a source worktree's",
+	"purge:remove deps from all regular worktrees",
 }
 
 var baseMenu = []string{
@@ -138,7 +140,7 @@ func completionCandidates(dir string, words []string) []string {
 		switch rest[0] {
 		case "rm":
 			return config.Deps(dir)
-		case "sync", "eject":
+		case "sync", "eject", "link":
 			return worktreeNames(dir, nil)
 		}
 		return nil

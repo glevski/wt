@@ -93,7 +93,11 @@ Usage:
                         add <path>, rm <path>, list (default),
                         sync [--copy] [name] (re-sync, foreground),
                         eject [--no-copy] [name] (own private copies instead
-                        of sharing hardlinks; --no-copy just deletes them)
+                        of sharing hardlinks; --no-copy just deletes them),
+                        link [source] (re-link deps as hardlinks — default
+                        source: the worktree holding your base branch),
+                        purge (remove deps from all regular worktrees after
+                        a y/N confirmation, to reclaim space)
   wt alias [cmd]        your own command aliases, git-style (stored as git
                         config wt.alias.*): add <name> <command...>, rm <name>,
                         list (default) — e.g. wt alias add cr create -c

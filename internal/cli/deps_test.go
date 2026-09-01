@@ -336,6 +336,108 @@ func TestStatusShowsDepsLine(t *testing.T) {
 	_ = root
 }
 
+func TestDepsLinkDefaultsToRecordedBase(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w", "--copy-deps"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+	srcFile := filepath.Join(repo, "node_modules/dep/index.js")
+	dstFile := filepath.Join(dest, "node_modules/dep/index.js")
+	if sameInode(t, srcFile, dstFile) {
+		t.Fatal("fixture expects an owned copy to start from")
+	}
+
+	// no argument: source = worktree holding the recorded base branch (main,
+	// checked out in the root repo — same filesystem in tests)
+	if err := deps(dest, []string{"link"}); err != nil {
+		t.Fatal(err)
+	}
+	if !sameInode(t, srcFile, dstFile) {
+		t.Error("deps link did not hardlink to the base's worktree")
+	}
+	if state, _ := git.DepsState(dest); state != "linked" {
+		t.Errorf("deps state = %q, want linked", state)
+	}
+}
+
+func TestDepsLinkExplicitSourceAndGuards(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil { // main-2, linked
+		t.Fatal(err)
+	}
+	if err := create(repo, []string{"-w", "--no-deps", "-n", "-two"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-two")
+
+	if err := deps(dest, []string{"link", "main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if !sameInode(t, filepath.Join(worktreePath(root, "proj", "main-2"), "node_modules/dep/index.js"),
+		filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("explicit-source link did not share inodes")
+	}
+
+	if err := deps(dest, []string{"link", "main-two"}); err == nil ||
+		!strings.Contains(err.Error(), "same worktree") {
+		t.Fatalf("self-link err = %v", err)
+	}
+}
+
+func TestDepsPurge(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil { // main-2
+		t.Fatal(err)
+	}
+	gittest.Git(t, repo, "branch", "staging")
+	if err := base(repo, []string{"add", "--deps", "-w", "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	_, errOut := setupOutputs(t)
+	stdinInput(t, "y\n")
+
+	if err := deps(repo, []string{"purge"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(worktreePath(root, "proj", "main-2"), "node_modules")); !os.IsNotExist(err) {
+		t.Error("regular worktree's deps survived the purge")
+	}
+	if _, err := os.Stat(filepath.Join(worktreePath(root, "proj", "staging"), "node_modules")); err != nil {
+		t.Error("base worktree's deps were purged — bases must be spared")
+	}
+	if _, err := os.Stat(filepath.Join(repo, "node_modules")); err != nil {
+		t.Error("root repo's deps were purged")
+	}
+	if state, _ := git.DepsState(worktreePath(root, "proj", "main-2")); state != "purged" {
+		t.Errorf("deps state = %q, want purged", state)
+	}
+	if !strings.Contains(errOut.String(), "remove deps from 1 worktree(s)? [y/N]") {
+		t.Errorf("prompt missing:\n%s", errOut.String())
+	}
+}
+
+func TestDepsPurgeAborts(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil {
+		t.Fatal(err)
+	}
+	setupOutputs(t)
+	stdinInput(t, "n\n")
+
+	err := deps(repo, []string{"purge"})
+	if err == nil || !strings.Contains(err.Error(), "aborted") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(worktreePath(root, "proj", "main-2"), "node_modules")); err != nil {
+		t.Error("deps removed despite aborted confirmation")
+	}
+}
+
 func TestLinkTreePreservesSymlinks(t *testing.T) {
 	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "out")
 	gittest.WriteFile(t, src, "pkg/real.js", "content")

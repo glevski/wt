@@ -13,7 +13,7 @@ import (
 	"wt/internal/git"
 )
 
-const depsUsage = "usage: wt deps [list | add <path> | rm <path> | sync [--copy] [name] | eject [--no-copy] [name]]"
+const depsUsage = "usage: wt deps [list | add <path> | rm <path> | sync [--copy] [name] | eject [--no-copy] [name] | link [source] | purge]"
 
 // deps manages the project's declared dependency paths (node_modules and
 // friends) that create/fork bring into new worktrees in the background —
@@ -36,6 +36,10 @@ func deps(dir string, args []string) error {
 		return depsSync(dir, rest)
 	case "eject":
 		return depsEject(dir, rest)
+	case "link":
+		return depsLink(dir, rest)
+	case "purge":
+		return depsPurge(dir, rest)
 	default:
 		return fmt.Errorf("unknown deps command %q — %s", sub, depsUsage)
 	}
@@ -170,6 +174,154 @@ func depsSync(dir string, args []string) error {
 		verb = "linked"
 	}
 	logf("synced %d dep(s) from '%s' into '%s' (%s)", len(present), filepath.Base(source.Path), filepath.Base(target.Path), verb)
+	return nil
+}
+
+// depsLink re-links the current worktree's deps to a source worktree —
+// default: the one holding the branch this worktree was created from (its
+// base) — replacing whatever is there with shared hardlinks.
+func depsLink(dir string, args []string) error {
+	if len(args) > 1 {
+		return errors.New("usage: wt deps link [source-worktree]")
+	}
+	ws, err := loadWorkspace(dir)
+	if err != nil {
+		return err
+	}
+	entries := config.Deps(ws.dir())
+	if len(entries) == 0 {
+		return hintf("wt deps add <path> declares one", "no deps declared")
+	}
+	target, err := ws.currentWorktree()
+	if err != nil {
+		return err
+	}
+	name := filepath.Base(target.Path)
+	if _, isBase := git.ReadBaseMark(target.Path); isBase {
+		return errors.New("this is a base worktree — bases own their deps, others link to them")
+	}
+	if state, ok := git.DepsState(target.Path); ok && strings.HasPrefix(state, "copying") {
+		return fmt.Errorf("'%s' is still syncing deps — wait for it first", name)
+	}
+
+	var source *git.Worktree
+	if len(args) == 1 {
+		source, err = matchWorktree(ws.repo.Worktrees, args[0])
+		if err != nil {
+			return err
+		}
+	} else {
+		baseBranch, ok := git.BaseBranch(target.Path)
+		if !ok {
+			return hintf("wt deps link <worktree> names the source explicitly",
+				"no base branch recorded for '%s'", name)
+		}
+		source = ws.repo.CheckedOut(baseBranch)
+		if source == nil {
+			return hintf("wt deps link <worktree> names the source explicitly",
+				"base branch '%s' is not checked out in any worktree", baseBranch)
+		}
+	}
+	if source.Path == target.Path {
+		return errors.New("source and target are the same worktree")
+	}
+	if !sameDevice(source.Path, target.Path) {
+		return hintf("hardlinks cannot cross filesystems — pick a source on the same disk, e.g. a base worktree",
+			"'%s' and '%s' are on different filesystems", filepath.Base(source.Path), name)
+	}
+
+	ignored := map[string]bool{}
+	paths, err := git.IgnoredPaths(source.Path)
+	if err != nil {
+		return err
+	}
+	for _, rel := range paths {
+		ignored[strings.TrimSuffix(rel, "/")] = true
+	}
+	present := presentDeps(source.Path, entries, ignored)
+	if len(present) == 0 {
+		return fmt.Errorf("none of the declared deps exist in '%s'", filepath.Base(source.Path))
+	}
+	if _, err := transferDepsInto(source.Path, target.Path, present, true); err != nil {
+		git.WriteDepsState(target.Path, "failed: "+err.Error())
+		return err
+	}
+	git.WriteDepsState(target.Path, "linked")
+	logf("linked %d dep(s) from '%s' into '%s'", len(present), filepath.Base(source.Path), name)
+	return nil
+}
+
+// depsPurge removes deps from every regular managed worktree — not the root,
+// not bases (they are the link sources), not the one you stand in — to
+// reclaim space. Lists the targets and asks first, like bulk rm.
+func depsPurge(dir string, args []string) error {
+	if len(args) != 0 {
+		return errors.New("usage: wt deps purge")
+	}
+	ws, err := loadWorkspace(dir)
+	if err != nil {
+		return err
+	}
+	entries := config.Deps(ws.dir())
+	if len(entries) == 0 {
+		return hintf("wt deps add <path> declares one", "no deps declared")
+	}
+	current := ws.repo.Current()
+	type victim struct {
+		wt      *git.Worktree
+		present []string
+	}
+	var victims []victim
+	for i := range ws.repo.Worktrees {
+		wt := &ws.repo.Worktrees[i]
+		if wt.Path == ws.repo.Worktrees[0].Path || !strings.HasPrefix(wt.Path, ws.root+"/") {
+			continue
+		}
+		if _, isBase := git.ReadBaseMark(wt.Path); isBase {
+			continue
+		}
+		name := filepath.Base(wt.Path)
+		if current != nil && wt.Path == current.Path {
+			logf("skipping '%s' — you are inside it (wt deps eject --no-copy removes its deps)", name)
+			continue
+		}
+		if state, ok := git.DepsState(wt.Path); ok && strings.HasPrefix(state, "copying") {
+			logf("skipping '%s' — deps still syncing", name)
+			continue
+		}
+		var present []string
+		for _, dep := range entries {
+			dep = strings.TrimSuffix(dep, "/")
+			if _, err := os.Lstat(filepath.Join(wt.Path, dep)); err == nil {
+				present = append(present, dep)
+			}
+		}
+		if len(present) > 0 {
+			victims = append(victims, victim{wt, present})
+		}
+	}
+	if len(victims) == 0 {
+		logf("nothing to purge — no regular worktree has deps present")
+		return nil
+	}
+
+	logf("worktrees to purge deps from:")
+	for _, v := range victims {
+		fmt.Fprintf(stderr, "  %s  (%s)\n", filepath.Base(v.wt.Path), strings.Join(v.present, ", "))
+	}
+	if !confirm(fmt.Sprintf("remove deps from %d worktree(s)?", len(victims))) {
+		return errors.New("aborted")
+	}
+	for _, v := range victims {
+		for _, dep := range v.present {
+			if err := os.RemoveAll(filepath.Join(v.wt.Path, dep)); err != nil {
+				return err
+			}
+		}
+		git.WriteDepsState(v.wt.Path, "purged")
+		logf("purged %s from '%s'", strings.Join(v.present, ", "), filepath.Base(v.wt.Path))
+	}
+	logf("purged %d worktree(s) — wt deps link (or sync) brings deps back", len(victims))
 	return nil
 }
 

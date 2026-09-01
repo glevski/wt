@@ -153,11 +153,19 @@ wt deps eject --no-copy   # just delete them; reinstall yourself
 - `--copy-deps` (create/fork/peek/base add) or `git config wt.depscopy true` —
   real copies instead of hardlinks
 - `wt deps [list | add <path> | rm <path> | sync [--copy] [name] |
-  eject [--no-copy] [name]]` — manage the list (stored as multi-valued
-  `git config wt.deps`); `sync` re-syncs deps into a worktree in the
-  foreground (linking by default, `--copy` forces copies) — recovery after a
-  failed background run, or onboarding a worktree created before deps were
-  declared.
+  eject [--no-copy] [name] | link [source] | purge]` — manage the list
+  (stored as multi-valued `git config wt.deps`); `sync` re-syncs deps into a
+  worktree in the foreground (linking by default, `--copy` forces copies) —
+  recovery after a failed background run, or onboarding a worktree created
+  before deps were declared.
+- `wt deps link [source]` — re-link the current worktree's deps as hardlinks
+  to a source worktree; with no argument the source is the worktree holding
+  the branch this one was created from (your base). The fix for worktrees
+  that got copies because they were created from a cross-filesystem root:
+  purge or eject, then `wt deps link staging`.
+- `wt deps purge` — reclaim space: remove deps from every regular worktree
+  (never the root, bases, or the one you stand in), after listing the
+  targets and a y/N confirmation. `wt deps link`/`sync` bring them back.
 
 `wt rm` refuses a worktree whose deps are still syncing; `wt rm -f` stops the
 background copier first (its pid rides in the state marker) and then removes,
