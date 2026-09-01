@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"wt/internal/config"
 	"wt/internal/git"
@@ -72,6 +73,10 @@ func copyEnvironment(ws *workspace, dest string, opts envOptions) {
 		return
 	}
 	link := !opts.copyDeps && !config.DepsCopy(ws.dir())
+	if link && !sameDevice(source.Path, dest) {
+		link = false
+		logf("'%s' and the new worktree are on different filesystems — deps will be copied, not hardlinked", filepath.Base(source.Path))
+	}
 	verb := "linking"
 	if !link {
 		verb = "copying"
@@ -134,6 +139,20 @@ func copyTree(src, dst string) error {
 		}
 		return copyPath(p, filepath.Join(dst, rel))
 	})
+}
+
+// sameDevice reports whether two paths live on the same filesystem — the
+// precondition for hardlinks. A stat failure counts as different, so callers
+// fall back to copying instead of promising links they cannot make.
+func sameDevice(a, b string) bool {
+	var sa, sb syscall.Stat_t
+	if err := syscall.Stat(a, &sa); err != nil {
+		return false
+	}
+	if err := syscall.Stat(b, &sb); err != nil {
+		return false
+	}
+	return sa.Dev == sb.Dev
 }
 
 // linkTree recreates a directory with hardlinked files: real directories,

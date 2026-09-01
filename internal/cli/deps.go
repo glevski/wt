@@ -154,6 +154,11 @@ func depsSync(dir string, args []string) error {
 		return fmt.Errorf("none of the declared deps exist in '%s'", filepath.Base(source.Path))
 	}
 	link := !*copyMode && !config.DepsCopy(ws.dir())
+	if link && !sameDevice(source.Path, target.Path) {
+		link = false
+		logf("'%s' and '%s' are on different filesystems — copying, not hardlinking",
+			filepath.Base(source.Path), filepath.Base(target.Path))
+	}
 	linked, err := transferDepsInto(source.Path, target.Path, present, link)
 	if err != nil {
 		git.WriteDepsState(target.Path, "failed: "+err.Error())

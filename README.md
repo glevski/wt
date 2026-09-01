@@ -128,7 +128,11 @@ default every file is **hardlinked** to the source worktree (`cp -al` style:
 real directories, shared file inodes), so a linked `node_modules` takes
 near-zero extra space and lands much faster than a copy. Sources on another
 filesystem fall back to copying automatically (hardlinks can't cross
-devices). Each dep is built in a `.wt-partial` sibling and renamed into
+devices), and wt says so upfront — a repo on a macOS bind mount with
+worktrees on the container disk always copies; fork from a base or another
+worktree (same filesystem) to get real links. `wt status` always shows a
+`deps` line: `linked`, `copied`, `copying…`, `ejected`, or `declared: …`
+where nothing was ever transferred (the root repo). Each dep is built in a `.wt-partial` sibling and renamed into
 place, so a half-built directory never appears at its real path. `wt list`
 shows `syncing` while it runs; `wt status` shows a `deps linked` line after.
 

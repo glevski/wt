@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"wt/internal/config"
 	"wt/internal/git"
 )
 
@@ -104,11 +105,20 @@ func status(dir string, args []string) error {
 	fmt.Fprintf(stdout, "branch    %s\n", branch)
 	fmt.Fprintf(stdout, "commit    %s\n", commit)
 	fmt.Fprintf(stdout, "path      %s\n", current.Path)
-	if state, ok := git.DepsState(current.Path); ok && state != "done" {
-		if strings.HasPrefix(state, "copying") {
+	if state, ok := git.DepsState(current.Path); ok {
+		switch {
+		case strings.HasPrefix(state, "copying"):
 			state = "copying… (log: " + git.DepsLogPath(current.Path) + ")"
+		case state == "done":
+			state = "copied"
+		case state == "linked":
+			state = "linked (shared hardlinks — wt deps eject to own them)"
 		}
 		fmt.Fprintf(stdout, "deps      %s\n", state)
+	} else if declared := config.Deps(ws.dir()); len(declared) > 0 {
+		// no transfer ever happened here (the root repo, or a pre-wt
+		// worktree) — still say what this project declares
+		fmt.Fprintf(stdout, "deps      declared: %s\n", strings.Join(declared, ", "))
 	}
 	if !*withGit {
 		return nil

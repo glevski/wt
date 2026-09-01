@@ -311,6 +311,31 @@ func TestDepsEjectRefusesWhileSyncing(t *testing.T) {
 	}
 }
 
+func TestStatusShowsDepsLine(t *testing.T) {
+	repo, root := depsFixture(t)
+	out, _ := setupOutputs(t)
+
+	// the root repo: no transfer ever happened, but deps are declared
+	if err := status(repo, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "deps      declared: node_modules") {
+		t.Errorf("root status missing declared-deps line:\n%s", out.String())
+	}
+
+	if err := create(repo, []string{"-w"}); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := status(repo, []string{"main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "deps      linked") {
+		t.Errorf("linked worktree status missing deps line:\n%s", out.String())
+	}
+	_ = root
+}
+
 func TestLinkTreePreservesSymlinks(t *testing.T) {
 	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "out")
 	gittest.WriteFile(t, src, "pkg/real.js", "content")
