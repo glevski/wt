@@ -381,22 +381,24 @@ everything else by most recent checkout (most recently created as tiebreak).
 
 ### `wt df` (alias: `du`)
 
-Per-worktree disk usage, sorted biggest-first — and **hardlink-aware**, so the
-deps-linking savings are visible instead of double-counted:
+What each worktree actually costs on disk, sorted biggest-first — and
+**hardlink-aware**: shared bytes are charged to the first worktree that holds
+them (du-style; canonical order root → bases → rest by last checkout), so a
+linked fork shows only its own few megabytes:
 
 ```
 $ wt df
   NAME      DEPS    SIZE    DEPS-SIZE  SHARED
   staging   copied  512M    498M       498M
-  main-2    linked  510M    498M       498M
-  TOTAL             524M               (498M saved by sharing)
+  main-2    linked  14M     ~          498M
+  TOTAL             526M               (498M saved by sharing)
 ```
 
-`SIZE` is the worktree's real (block-based) usage excluding `.git`;
-`DEPS-SIZE` the subset under declared deps — what `deps purge` would free
-there; `SHARED` the bytes living in hardlinked files; `TOTAL` counts every
-inode once across all worktrees. Walking big trees takes a moment (rows are
-computed in parallel).
+`SIZE` is the attributed real (block-based) usage excluding `.git` — the
+column sums exactly to `TOTAL`; `DEPS-SIZE` the attributed subset under
+declared deps — what `deps purge` would free there; `SHARED` this tree's
+hardlink-shared content (informational, not charged again). Walking big
+trees takes a moment (rows are computed in parallel).
 
 On a terminal, names are colored by kind — in `list` and in `status`'s
 worktree line alike: **cyan** for the main checkout, **green** for wt-managed

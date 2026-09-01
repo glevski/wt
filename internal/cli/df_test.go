@@ -20,37 +20,28 @@ func TestDiskUsage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	seen := newInodeSet()
-	size, depsSize, shared, err := diskUsage(root, []string{"node_modules"}, seen)
+	u, err := diskUsage(root, []string{"node_modules"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if size <= 0 || depsSize <= 0 || shared <= 0 {
-		t.Fatalf("size=%d depsSize=%d shared=%d, want all > 0", size, depsSize, shared)
+	if u.own <= 0 || u.ownDeps != 0 {
+		t.Errorf("own=%d ownDeps=%d; want own > 0 (app.js) and no single-link dep bytes", u.own, u.ownDeps)
 	}
-	if depsSize >= size {
-		t.Errorf("depsSize %d should be a strict subset of size %d", depsSize, size)
+	if len(u.shared) != 1 {
+		t.Fatalf("shared inodes = %d, want 1 (the in-tree twin counts once, like du)", len(u.shared))
 	}
-	if seen.total >= size {
-		t.Errorf("unique total %d should be < naive size %d (the hardlinked twin dedupes)", seen.total, size)
-	}
-
-	// a second root sharing the same inode adds nothing to the unique total
-	root2 := t.TempDir()
-	if err := os.Link(filepath.Join(root, "twin.js"), filepath.Join(root2, "twin.js")); err != nil {
-		t.Fatal(err)
-	}
-	before := seen.total
-	if _, _, _, err := diskUsage(root2, nil, seen); err != nil {
-		t.Fatal(err)
-	}
-	if seen.total != before {
-		t.Errorf("unique total grew by %d for an already-seen inode", seen.total-before)
+	for key, bytes := range u.shared {
+		if bytes < 8000 {
+			t.Errorf("shared bytes = %d, want at least the file's blocks", bytes)
+		}
+		if _, ok := u.sharedDeps[key]; !ok {
+			t.Error("the shared inode lives under node_modules — sharedDeps must contain it")
+		}
 	}
 }
 
 func TestDf(t *testing.T) {
-	repo, _ := depsFixture(t)
+	repo, root := depsFixture(t)
 	setupOutputs(t)
 	if err := create(repo, []string{"-w"}); err != nil {
 		t.Fatal(err)
@@ -66,6 +57,23 @@ func TestDf(t *testing.T) {
 			t.Errorf("df output missing %q:\n%s", want, got)
 		}
 	}
+	// first-owner attribution: the root holds the shared inodes (canonical
+	// order starts there), so the linked fork's SIZE must be tiny — smaller
+	// than its own SHARED subset.
+	for _, line := range strings.Split(got, "\n") {
+		if !strings.Contains(line, "main-2") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 5 {
+			t.Fatalf("unexpected row: %q", line)
+		}
+		size, shared := fields[2], fields[4]
+		if size == shared {
+			t.Errorf("linked fork's SIZE (%s) should exclude shared bytes (%s) — first owner pays", size, shared)
+		}
+	}
+	_ = root
 }
 
 func TestHumanBytes(t *testing.T) {
