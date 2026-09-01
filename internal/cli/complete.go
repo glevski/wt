@@ -34,6 +34,7 @@ var commandMenu = []string{
 	"base:manage base branches",
 	"list:list worktrees",
 	"ls:list worktrees (alias)",
+	"df:disk usage per worktree",
 	"status:show a worktree",
 	"git-log:run git log in a worktree",
 	"copy:copy a file from another worktree",

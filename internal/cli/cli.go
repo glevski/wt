@@ -59,6 +59,9 @@ Usage:
                         update [name] (fast-forward to upstream),
                         reset [--hard] [name] (hard-sync to upstream)
   wt list               list this repo's worktrees (alias: ls)
+  wt df                 disk usage per worktree — deps state, size, deps size
+                        and hardlink-shared bytes, plus a deduplicated total
+                        (alias: du); big trees take a moment
   wt status [name]      show a worktree (default: the current one) — project
                         link, worktree and path; -g/--git appends git status
                         output as if run there
@@ -199,6 +202,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(base(cwd, args))
 	case "list", "ls":
 		return run(list(cwd, args))
+	case "df", "du":
+		return run(df(cwd, args))
 	case "status":
 		return run(status(cwd, args))
 	case "git-log":
@@ -239,6 +244,7 @@ var builtinNames = map[string]bool{
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
 	"git-log": true, "finish": true, "init": true, "copy": true,
+	"df": true, "du": true,
 }
 
 // jumpCommands emit a cd script on stdout; the shell wrapper must capture
