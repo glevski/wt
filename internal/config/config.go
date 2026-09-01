@@ -104,6 +104,13 @@ func CopyIgnored(repoDir string) bool {
 	return v != "false"
 }
 
+// DepsCopy reports whether deps should be copied for real instead of the
+// default hardlinking. Default false; enable with `git config wt.depscopy true`.
+func DepsCopy(repoDir string) bool {
+	v, _ := git.Run(repoDir, "config", "--get", "--type=bool", "wt.depscopy")
+	return v == "true"
+}
+
 // Name returns the project name from `git config wt.name`, ok=false when unset.
 func Name(repoDir string) (string, bool) {
 	name, err := git.Run(repoDir, "config", "--get", "wt.name")

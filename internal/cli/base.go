@@ -48,11 +48,12 @@ func baseAdd(dir string, args []string) error {
 	fs := flag.NewFlagSet("wt base add", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	noIgnored := fs.Bool("no-ignored", false, "copy no ignored files at all")
-	withDeps := fs.Bool("deps", false, "also copy declared deps")
-	wait := fs.Bool("w", false, "copy deps synchronously")
-	fs.BoolVar(wait, "wait", false, "copy deps synchronously")
+	withDeps := fs.Bool("deps", false, "also bring over declared deps")
+	wait := fs.Bool("w", false, "bring deps over synchronously")
+	fs.BoolVar(wait, "wait", false, "bring deps over synchronously")
+	copyDeps := fs.Bool("copy-deps", false, "copy deps instead of hardlinking them")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
-		return errors.New("usage: wt base add [--no-ignored] [--deps [-w]] <branch>")
+		return errors.New("usage: wt base add [--no-ignored] [--deps [-w] [--copy-deps]] <branch>")
 	}
 	args = fs.Args()
 	ws, err := loadWorkspace(dir)
@@ -97,7 +98,7 @@ func baseAdd(dir string, args []string) error {
 			"branch '%s' not found locally or on any remote", branch)
 	}
 	git.WriteBaseMark(path, branch)
-	copyEnvironment(ws, path, envOptions{noIgnored: *noIgnored, noDeps: !*withDeps, wait: *wait})
+	copyEnvironment(ws, path, envOptions{noIgnored: *noIgnored, noDeps: !*withDeps, wait: *wait, copyDeps: *copyDeps})
 	logf("added base '%s' at %s", branch, path)
 	logf("jump with: wt ch %s — fork real work off it with: wt fork %s", dirName(branch), branch)
 	return nil

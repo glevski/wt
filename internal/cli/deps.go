@@ -2,7 +2,10 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -10,10 +13,11 @@ import (
 	"wt/internal/git"
 )
 
-const depsUsage = "usage: wt deps [list | add <path> | rm <path> | sync [name]]"
+const depsUsage = "usage: wt deps [list | add <path> | rm <path> | sync [--copy] [name] | eject [--no-copy] [name]]"
 
 // deps manages the project's declared dependency paths (node_modules and
-// friends) that create/fork copy into new worktrees in the background.
+// friends) that create/fork bring into new worktrees in the background —
+// hardlinked to the source by default, so they cost almost no space.
 func deps(dir string, args []string) error {
 	if len(args) == 0 {
 		return depsList(dir)
@@ -30,6 +34,8 @@ func deps(dir string, args []string) error {
 		return depsRemove(dir, rest)
 	case "sync":
 		return depsSync(dir, rest)
+	case "eject":
+		return depsEject(dir, rest)
 	default:
 		return fmt.Errorf("unknown deps command %q — %s", sub, depsUsage)
 	}
@@ -97,13 +103,17 @@ func depsRemove(dir string, args []string) error {
 	return nil
 }
 
-// depsSync re-copies deps into a worktree in the foreground — recovery after
-// a failed background copy, and onboarding for worktrees created before deps
-// were declared. Source is the worktree you run it from (the root when you
-// target the one you are standing in).
+// depsSync re-syncs deps into a worktree in the foreground — recovery after
+// a failed background transfer, and onboarding for worktrees created before
+// deps were declared. Source is the worktree you run it from (the root when
+// you target the one you are standing in). Hardlinks by default like
+// create/fork; --copy forces real copies.
 func depsSync(dir string, args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: wt deps sync [worktree-name]")
+	fs := flag.NewFlagSet("wt deps sync", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	copyMode := fs.Bool("copy", false, "copy instead of hardlinking")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt deps sync [--copy] [worktree-name]")
 	}
 	ws, err := loadWorkspace(dir)
 	if err != nil {
@@ -117,8 +127,8 @@ func depsSync(dir string, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(args) == 1 {
-		target, err = matchWorktree(ws.repo.Worktrees, args[0])
+	if fs.NArg() == 1 {
+		target, err = matchWorktree(ws.repo.Worktrees, fs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -143,11 +153,77 @@ func depsSync(dir string, args []string) error {
 	if len(present) == 0 {
 		return fmt.Errorf("none of the declared deps exist in '%s'", filepath.Base(source.Path))
 	}
-	if err := copyDepsInto(source.Path, target.Path, present); err != nil {
+	link := !*copyMode && !config.DepsCopy(ws.dir())
+	linked, err := transferDepsInto(source.Path, target.Path, present, link)
+	if err != nil {
+		git.WriteDepsState(target.Path, "failed: "+err.Error())
+		return err
+	}
+	git.WriteDepsState(target.Path, doneState(linked))
+	verb := "copied"
+	if linked {
+		verb = "linked"
+	}
+	logf("synced %d dep(s) from '%s' into '%s' (%s)", len(present), filepath.Base(source.Path), filepath.Base(target.Path), verb)
+	return nil
+}
+
+// depsEject makes a worktree own its deps: the (possibly hardlinked) trees
+// are rebuilt in place as private copies, read through the existing files —
+// no surviving source worktree needed, and the .wt-partial staging keeps it
+// atomic. --no-copy just deletes the deps for a manual reinstall.
+func depsEject(dir string, args []string) error {
+	fs := flag.NewFlagSet("wt deps eject", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	noCopy := fs.Bool("no-copy", false, "delete the deps instead of copying them")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 1 {
+		return errors.New("usage: wt deps eject [--no-copy] [name]")
+	}
+	ws, err := loadWorkspace(dir)
+	if err != nil {
+		return err
+	}
+	target, err := ws.currentWorktree()
+	if err != nil {
+		return err
+	}
+	if fs.NArg() == 1 {
+		target, err = matchWorktree(ws.repo.Worktrees, fs.Arg(0))
+		if err != nil {
+			return err
+		}
+	}
+	name := filepath.Base(target.Path)
+	if state, ok := git.DepsState(target.Path); ok && strings.HasPrefix(state, "copying") {
+		return fmt.Errorf("'%s' is still syncing deps — wait for it first", name)
+	}
+	var present []string
+	for _, dep := range config.Deps(ws.dir()) {
+		dep = strings.TrimSuffix(dep, "/")
+		if _, err := os.Lstat(filepath.Join(target.Path, dep)); err == nil {
+			present = append(present, dep)
+		}
+	}
+	if len(present) == 0 {
+		return fmt.Errorf("no declared deps present in '%s'", name)
+	}
+
+	if *noCopy {
+		for _, dep := range present {
+			if err := os.RemoveAll(filepath.Join(target.Path, dep)); err != nil {
+				return err
+			}
+			logf("removed '%s'", dep)
+		}
+		git.WriteDepsState(target.Path, "ejected")
+		logf("ejected '%s' without copying — reinstall deps when you need them", name)
+		return nil
+	}
+	if _, err := transferDepsInto(target.Path, target.Path, present, false); err != nil {
 		git.WriteDepsState(target.Path, "failed: "+err.Error())
 		return err
 	}
 	git.WriteDepsState(target.Path, "done")
-	logf("synced %d dep(s) from '%s' into '%s'", len(present), filepath.Base(source.Path), filepath.Base(target.Path))
+	logf("ejected %d dep(s) — '%s' now owns private copies", len(present), name)
 	return nil
 }

@@ -13,7 +13,8 @@ import (
 type envOptions struct {
 	noIgnored bool // copy nothing: no ignored files, no deps
 	noDeps    bool // copy ignored files but skip declared deps
-	wait      bool // copy deps synchronously instead of in the background
+	wait      bool // bring deps over synchronously instead of in the background
+	copyDeps  bool // force real copies instead of the default hardlinks
 }
 
 // copyEnvironment mirrors the source worktree's git-ignored files (.env,
@@ -70,23 +71,33 @@ func copyEnvironment(ws *workspace, dest string, opts envOptions) {
 	if len(present) == 0 {
 		return
 	}
+	link := !opts.copyDeps && !config.DepsCopy(ws.dir())
+	verb := "linking"
+	if !link {
+		verb = "copying"
+	}
 	if opts.wait {
-		if err := copyDepsInto(source.Path, dest, present); err != nil {
+		linked, err := transferDepsInto(source.Path, dest, present, link)
+		if err != nil {
 			git.WriteDepsState(dest, "failed: "+err.Error())
-			logf("warning: copying deps failed: %v", err)
+			logf("warning: bringing deps over failed: %v", err)
 			return
 		}
-		git.WriteDepsState(dest, "done")
-		logf("copied %d dep(s) from '%s'", len(present), filepath.Base(source.Path))
+		git.WriteDepsState(dest, doneState(linked))
+		if linked {
+			logf("linked %d dep(s) to '%s' — wt deps eject makes them private copies", len(present), filepath.Base(source.Path))
+		} else {
+			logf("copied %d dep(s) from '%s'", len(present), filepath.Base(source.Path))
+		}
 		return
 	}
 	git.WriteDepsState(dest, "copying")
-	if err := startDepsWorker(source.Path, dest, present); err != nil {
+	if err := startDepsWorker(source.Path, dest, present, link); err != nil {
 		git.WriteDepsState(dest, "failed: "+err.Error())
-		logf("warning: starting the deps copy failed: %v", err)
+		logf("warning: starting the deps %s failed: %v", verb, err)
 		return
 	}
-	logf("copying %d dep(s) in the background — wt status shows progress, -w waits", len(present))
+	logf("%s %d dep(s) in the background — wt status shows progress, -w waits", verb, len(present))
 }
 
 // presentDeps filters declared deps down to the ones that exist in the source
@@ -123,4 +134,44 @@ func copyTree(src, dst string) error {
 		}
 		return copyPath(p, filepath.Join(dst, rel))
 	})
+}
+
+// linkTree recreates a directory with hardlinked files: real directories,
+// but every regular file shares its inode with the source. Errors wrap EXDEV
+// when the destination is on another filesystem.
+func linkTree(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return os.MkdirAll(filepath.Join(dst, rel), 0o755)
+		}
+		return linkPath(p, filepath.Join(dst, rel))
+	})
+}
+
+// linkPath is copyPath's hardlinking sibling. Symlinks are still recreated
+// as symlinks — link(2) on a symlink is unportable — so only regular files
+// share inodes.
+func linkPath(src, dst string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(src)
+		if err != nil {
+			return err
+		}
+		return os.Symlink(target, dst)
+	}
+	return os.Link(src, dst)
 }

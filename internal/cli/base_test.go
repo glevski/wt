@@ -85,10 +85,10 @@ func TestBaseAddWithDeps(t *testing.T) {
 	}
 	path := worktreePath(root, "proj", "staging")
 	if _, err := os.Stat(filepath.Join(path, "node_modules/dep/index.js")); err != nil {
-		t.Error("--deps -w did not copy the dep")
+		t.Error("--deps -w did not bring the dep over")
 	}
-	if state, _ := git.DepsState(path); state != "done" {
-		t.Errorf("deps state = %q, want done", state)
+	if state, _ := git.DepsState(path); state != "linked" {
+		t.Errorf("deps state = %q, want linked (hardlinks are the default)", state)
 	}
 }
 

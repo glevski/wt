@@ -113,28 +113,47 @@ Both commands also copy **git-ignored** files (`.env`, `node_modules`, …)
 from the worktree you run them in, so new worktrees are runnable without
 reinstalling anything. Turn it off with `git config wt.copyignored false`.
 
-#### Deps — big dependencies, copied in the background
+#### Deps — big dependencies, hardlinked in the background
 
-Declare heavy ignored paths as **deps** and they stop blocking your jumps:
+Declare heavy ignored paths as **deps** and they stop blocking your jumps —
+and stop costing disk:
 
 ```sh
 wt deps add node_modules
 ```
 
-On `create`/`fork`, deps are copied by a detached background worker — you're
-already cd'ed into the new worktree while `node_modules` streams in. Each dep
-is built in a `.wt-partial` sibling and renamed into place, so a half-copied
-directory never appears at its real path. `wt list` shows `syncing` while it
-runs and `wt status` a `deps` line (with the log path); the small remaining
-ignored files still copy synchronously before the jump.
+On `create`/`fork`, deps are brought over by a detached background worker —
+you're already cd'ed into the new worktree while `node_modules` appears. By
+default every file is **hardlinked** to the source worktree (`cp -al` style:
+real directories, shared file inodes), so a linked `node_modules` takes
+near-zero extra space and lands much faster than a copy. Sources on another
+filesystem fall back to copying automatically (hardlinks can't cross
+devices). Each dep is built in a `.wt-partial` sibling and renamed into
+place, so a half-built directory never appears at its real path. `wt list`
+shows `syncing` while it runs; `wt status` shows a `deps linked` line after.
 
-- `-w`/`--wait` — copy deps synchronously (block until done)
+Hardlink fine print: removing any worktree never breaks the others (shared
+inodes live while one link remains), and package managers *replace* files on
+install, which naturally un-shares them. But a tool editing files **in
+place** inside a dep (build caches) writes through to every linked worktree —
+when that matters, eject:
+
+```sh
+wt deps eject             # this worktree gets private copies of its deps
+wt deps eject --no-copy   # just delete them; reinstall yourself
+```
+
+- `-w`/`--wait` — bring deps over synchronously (block until done)
 - `--no-deps` — skip deps for this run, still copy other ignored files
 - `--no-ignored` — copy nothing at all (no ignored files, no deps)
-- `wt deps [list | add <path> | rm <path> | sync [name]]` — manage the list
-  (stored as multi-valued `git config wt.deps`); `sync` re-copies deps into a
-  worktree in the foreground — recovery after a failed background copy, or
-  onboarding a worktree created before deps were declared.
+- `--copy-deps` (create/fork/peek/base add) or `git config wt.depscopy true` —
+  real copies instead of hardlinks
+- `wt deps [list | add <path> | rm <path> | sync [--copy] [name] |
+  eject [--no-copy] [name]]` — manage the list (stored as multi-valued
+  `git config wt.deps`); `sync` re-syncs deps into a worktree in the
+  foreground (linking by default, `--copy` forces copies) — recovery after a
+  failed background run, or onboarding a worktree created before deps were
+  declared.
 
 `wt rm` refuses a worktree whose deps are still syncing; `wt rm -f` stops the
 background copier first (its pid rides in the state marker) and then removes,

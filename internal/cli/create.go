@@ -40,10 +40,11 @@ func create(dir string, args []string) error {
 func envFlags(fs *flag.FlagSet) func() envOptions {
 	noIgnored := fs.Bool("no-ignored", false, "copy no ignored files and no deps")
 	noDeps := fs.Bool("no-deps", false, "copy ignored files but skip deps")
-	wait := fs.Bool("w", false, "copy deps synchronously")
-	fs.BoolVar(wait, "wait", false, "copy deps synchronously")
+	wait := fs.Bool("w", false, "bring deps over synchronously")
+	fs.BoolVar(wait, "wait", false, "bring deps over synchronously")
+	copyDeps := fs.Bool("copy-deps", false, "copy deps instead of hardlinking them")
 	return func() envOptions {
-		return envOptions{noIgnored: *noIgnored, noDeps: *noDeps, wait: *wait}
+		return envOptions{noIgnored: *noIgnored, noDeps: *noDeps, wait: *wait, copyDeps: *copyDeps}
 	}
 }
 

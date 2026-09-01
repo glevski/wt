@@ -60,7 +60,8 @@ var depsMenu = []string{
 	"list:show declared deps",
 	"add:declare a dependency path",
 	"rm:remove a declared dep",
-	"sync:re-copy deps into a worktree",
+	"sync:re-sync deps into a worktree",
+	"eject:own the deps instead of sharing hardlinks",
 }
 
 var baseMenu = []string{
@@ -137,7 +138,7 @@ func completionCandidates(dir string, words []string) []string {
 		switch rest[0] {
 		case "rm":
 			return config.Deps(dir)
-		case "sync":
+		case "sync", "eject":
 			return worktreeNames(dir, nil)
 		}
 		return nil

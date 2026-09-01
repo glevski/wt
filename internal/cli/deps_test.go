@@ -62,25 +62,54 @@ func TestDepsAddRmList(t *testing.T) {
 	}
 }
 
-func TestCreateCopiesDepsWithWait(t *testing.T) {
+func TestCreateLinksDepsWithWait(t *testing.T) {
 	repo, root := depsFixture(t)
 
 	if err := create(repo, []string{"-w"}); err != nil {
 		t.Fatal(err)
 	}
 	dest := worktreePath(root, "proj", "main-2")
-	if _, err := os.Stat(filepath.Join(dest, "node_modules/dep/index.js")); err != nil {
-		t.Error("dep not copied with -w")
+	if !sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("dep file not hardlinked to the source")
 	}
 	if _, err := os.Stat(filepath.Join(dest, ".env")); err != nil {
 		t.Error("non-dep ignored file not copied")
 	}
-	if state, ok := git.DepsState(dest); !ok || state != "done" {
-		t.Errorf("deps state = %q, %v; want done", state, ok)
+	if state, ok := git.DepsState(dest); !ok || state != "linked" {
+		t.Errorf("deps state = %q, %v; want linked", state, ok)
 	}
 	if _, err := os.Stat(filepath.Join(dest, "node_modules.wt-partial")); !os.IsNotExist(err) {
 		t.Error("partial temp dir left behind")
 	}
+}
+
+func TestCreateCopyDepsFlag(t *testing.T) {
+	repo, root := depsFixture(t)
+
+	if err := create(repo, []string{"-w", "--copy-deps"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+	if sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("--copy-deps still hardlinked the dep")
+	}
+	if state, ok := git.DepsState(dest); !ok || state != "done" {
+		t.Errorf("deps state = %q, %v; want done", state, ok)
+	}
+}
+
+// sameInode reports whether two paths are the same file (hardlinked).
+func sameInode(t *testing.T, a, b string) bool {
+	t.Helper()
+	ai, err := os.Stat(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bi, err := os.Stat(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return os.SameFile(ai, bi)
 }
 
 func TestCreateNoDepsFlag(t *testing.T) {
@@ -118,9 +147,10 @@ func TestCreateSpawnsDepsWorker(t *testing.T) {
 
 	var gotSrc, gotDst string
 	var gotDeps []string
+	var gotLink bool
 	origStart := startDepsWorker
-	startDepsWorker = func(src, dst string, deps []string) error {
-		gotSrc, gotDst, gotDeps = src, dst, deps
+	startDepsWorker = func(src, dst string, deps []string, link bool) error {
+		gotSrc, gotDst, gotDeps, gotLink = src, dst, deps, link
 		return nil
 	}
 	t.Cleanup(func() { startDepsWorker = origStart })
@@ -131,6 +161,9 @@ func TestCreateSpawnsDepsWorker(t *testing.T) {
 	dest := worktreePath(root, "proj", "main-2")
 	if gotSrc != repo || gotDst != dest || len(gotDeps) != 1 || gotDeps[0] != "node_modules" {
 		t.Errorf("worker args = %q %q %v", gotSrc, gotDst, gotDeps)
+	}
+	if !gotLink {
+		t.Error("worker not asked to link by default")
 	}
 	if state, ok := git.DepsState(dest); !ok || state != "copying" {
 		t.Errorf("deps state = %q, %v; want copying", state, ok)
@@ -154,8 +187,30 @@ func TestDepsWorkerCopiesAndMarksDone(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "node_modules/dep/index.js")); err != nil {
 		t.Error("worker did not copy the dep")
 	}
+	if sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("plain worker mode must copy, not link")
+	}
 	if state, ok := git.DepsState(dest); !ok || state != "done" {
 		t.Errorf("deps state = %q, %v; want done", state, ok)
+	}
+}
+
+func TestDepsWorkerLinkMode(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"--no-deps"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+
+	if err := depsWorker([]string{"--link", repo, dest, "node_modules"}); err != nil {
+		t.Fatal(err)
+	}
+	if !sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("--link worker did not hardlink")
+	}
+	if state, ok := git.DepsState(dest); !ok || state != "linked" {
+		t.Errorf("deps state = %q, %v; want linked", state, ok)
 	}
 }
 
@@ -171,11 +226,107 @@ func TestDepsSync(t *testing.T) {
 	if err := deps(repo, []string{"sync", "main-2"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dest, "node_modules/dep/index.js")); err != nil {
-		t.Error("sync did not copy the dep")
+	if !sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("sync did not hardlink the dep by default")
 	}
-	if state, ok := git.DepsState(dest); !ok || state != "done" {
-		t.Errorf("deps state = %q, %v; want done", state, ok)
+	if state, ok := git.DepsState(dest); !ok || state != "linked" {
+		t.Errorf("deps state = %q, %v; want linked", state, ok)
+	}
+
+	// --copy forces owned copies
+	if err := deps(repo, []string{"sync", "--copy", "main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if sameInode(t, filepath.Join(repo, "node_modules/dep/index.js"), filepath.Join(dest, "node_modules/dep/index.js")) {
+		t.Error("sync --copy still hardlinked")
+	}
+	if state, _ := git.DepsState(dest); state != "done" {
+		t.Errorf("deps state after --copy = %q, want done", state)
+	}
+}
+
+func TestDepsEject(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+	srcFile := filepath.Join(repo, "node_modules/dep/index.js")
+	dstFile := filepath.Join(dest, "node_modules/dep/index.js")
+	if !sameInode(t, srcFile, dstFile) {
+		t.Fatal("fixture expects a linked worktree")
+	}
+
+	if err := deps(repo, []string{"eject", "main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if sameInode(t, srcFile, dstFile) {
+		t.Error("eject left the dep hardlinked")
+	}
+	want, _ := os.ReadFile(srcFile)
+	got, err := os.ReadFile(dstFile)
+	if err != nil || string(got) != string(want) {
+		t.Errorf("ejected content differs: %q vs %q (%v)", got, want, err)
+	}
+	if state, _ := git.DepsState(dest); state != "done" {
+		t.Errorf("deps state = %q, want done", state)
+	}
+}
+
+func TestDepsEjectNoCopy(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+
+	if err := deps(repo, []string{"eject", "--no-copy", "main-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "node_modules")); !os.IsNotExist(err) {
+		t.Error("--no-copy left the dep in place")
+	}
+	if state, _ := git.DepsState(dest); state != "ejected" {
+		t.Errorf("deps state = %q, want ejected", state)
+	}
+	if _, err := os.Stat(filepath.Join(repo, "node_modules/dep/index.js")); err != nil {
+		t.Error("source worktree lost its dep — shared inode must survive removal")
+	}
+}
+
+func TestDepsEjectRefusesWhileSyncing(t *testing.T) {
+	repo, root := depsFixture(t)
+	setupOutputs(t)
+	if err := create(repo, []string{"-w"}); err != nil {
+		t.Fatal(err)
+	}
+	dest := worktreePath(root, "proj", "main-2")
+	git.WriteDepsState(dest, "copying")
+
+	err := deps(repo, []string{"eject", "main-2"})
+	if err == nil || !strings.Contains(err.Error(), "still syncing") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLinkTreePreservesSymlinks(t *testing.T) {
+	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "out")
+	gittest.WriteFile(t, src, "pkg/real.js", "content")
+	if err := os.Symlink("real.js", filepath.Join(src, "pkg/alias.js")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := linkTree(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if !sameInode(t, filepath.Join(src, "pkg/real.js"), filepath.Join(dst, "pkg/real.js")) {
+		t.Error("regular file not hardlinked")
+	}
+	info, err := os.Lstat(filepath.Join(dst, "pkg/alias.js"))
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("symlink not recreated as a symlink: %v, %v", info, err)
 	}
 }
 

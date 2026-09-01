@@ -56,7 +56,7 @@ func TestPeekCopiesEnvironment(t *testing.T) {
 
 	var workerDst string
 	origStart := startDepsWorker
-	startDepsWorker = func(src, dst string, deps []string) error {
+	startDepsWorker = func(src, dst string, deps []string, link bool) error {
 		workerDst = dst
 		return nil
 	}
@@ -86,10 +86,10 @@ func TestPeekWaitCopiesDepsInline(t *testing.T) {
 	}
 	dest := filepath.Join(root, "proj", "peek-HEAD")
 	if _, err := os.Stat(filepath.Join(dest, "node_modules/dep/index.js")); err != nil {
-		t.Error("deps not copied with -w")
+		t.Error("deps not brought over with -w")
 	}
-	if state, _ := git.DepsState(dest); state != "done" {
-		t.Errorf("deps state = %q, want done", state)
+	if state, _ := git.DepsState(dest); state != "linked" {
+		t.Errorf("deps state = %q, want linked (hardlinks are the default)", state)
 	}
 }
 

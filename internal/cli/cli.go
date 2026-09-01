@@ -85,9 +85,15 @@ Usage:
                         registry that wt global works from (bare wt link -r
                         registers an already linked repo); with no arguments,
                         show the current link
-  wt deps [cmd]         manage dependency paths (node_modules, …) copied into
-                        new worktrees in the background: add <path>, rm <path>,
-                        list (default), sync [name] (re-copy, foreground)
+  wt deps [cmd]         manage dependency paths (node_modules, …) brought into
+                        new worktrees in the background — hardlinked to the
+                        source by default (near-zero space; cross-filesystem
+                        falls back to copying; --copy-deps on create/fork or
+                        git config wt.depscopy force copies):
+                        add <path>, rm <path>, list (default),
+                        sync [--copy] [name] (re-sync, foreground),
+                        eject [--no-copy] [name] (own private copies instead
+                        of sharing hardlinks; --no-copy just deletes them)
   wt alias [cmd]        your own command aliases, git-style (stored as git
                         config wt.alias.*): add <name> <command...>, rm <name>,
                         list (default) — e.g. wt alias add cr create -c
