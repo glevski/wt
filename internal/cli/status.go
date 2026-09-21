@@ -120,6 +120,10 @@ func status(dir string, args []string) error {
 		// worktree) — still say what this project declares
 		fmt.Fprintf(stdout, "deps      declared: %s\n", strings.Join(declared, ", "))
 	}
+	if series := loadSnapshots(current.Path)[current.Head]; len(series) > 0 {
+		last := series[len(series)-1]
+		fmt.Fprintf(stdout, "snapshots %d (latest %q, %s)\n", len(series), last.Message, agoPhrase(last.When))
+	}
 	if !*withGit {
 		return nil
 	}

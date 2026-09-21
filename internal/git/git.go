@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -14,7 +15,16 @@ import (
 // Run executes git -C dir with args and returns stdout with surrounding
 // whitespace trimmed. On failure the error carries git's stderr.
 func Run(dir string, args ...string) (string, error) {
+	return RunEnv(dir, nil, args...)
+}
+
+// RunEnv is Run with extra environment variables (KEY=value) for the child —
+// how a throwaway GIT_INDEX_FILE keeps a snapshot off the real index.
+func RunEnv(dir string, env []string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

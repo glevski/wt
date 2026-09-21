@@ -425,6 +425,44 @@ like the command they expand to, and an alias of a jump command (`create`,
 `checkout`, `peek`, …) cd's exactly like the real thing: the shell wrapper
 asks the binary whether an unknown first word is a jump alias.
 
+## Snapshots — a private, diffable record of your iterations
+
+Polishing a change takes several rounds, and committing each one is overkill
+— but without a record you lose track of what changed when. `wt snapshot`
+(alias `snap`) records the worktree's current state — tracked edits **and**
+untracked files, ignored files excluded — as a local, commit-like object:
+never on the branch, never pushed, invisible to `git log`, `git branch` and
+other worktrees, gone with the worktree.
+
+```sh
+wt snap                    # record "snapshot 1"; the next call is "snapshot 2", …
+wt snap polish the auth    # …or with a message (-m if it would read as a subcommand)
+wt snap ls                 # this series: N, AGE, FILES, MESSAGE
+wt snap show 2             # what iteration 2 added — git show, pager and colors
+wt snap diff               # working tree vs the latest snapshot: what changed since you last recorded
+wt snap diff 2             # snapshot 2 vs 1: what iteration 2 added
+wt snap diff 1 3           # any two
+wt snap diff --full        # working tree vs the commit — like git diff, but untracked files included
+wt snap diff --full 2      # everything up to snapshot 2
+wt snap purge              # drop this series (y/N); --all drops every series
+wt snap rev 2              # the sha — for hand-rolled git, or: wt peek $(wt snap rev 2)
+```
+
+Snapshots are numbered per commit: `git commit` (or amend, rebase) starts a
+fresh series at 1, and the old one stays until purged. `wt snap ls --all`
+shows every series grouped by its base commit, `wt snap ls <commit>` one of
+them, and `<commit>:N` addresses a snapshot in it (`wt snap show a1b2c3d:2`).
+Extra arguments to `show` and `diff` pass through to git (`--stat`, paths, …).
+
+Under the hood a snapshot is a commit whose tree is built from a throwaway
+index and stored under `refs/worktree/wt/snap/…` — git's per-worktree ref
+namespace — so two worktrees on the same commit never mix, and no ordinary
+push (`git push`, `--all`, `--tags`, force pushes) ever carries one. The one
+exception is `git push --mirror`, which by definition copies every ref:
+purge first if you mirror a worktree. Recording an unchanged tree is a no-op.
+Untracked scratch files get recorded too; gitignore what you don't want kept.
+`wt status` shows the count, and `wt rm` says how many go with the worktree.
+
 ## Peek — look at any revision without touching anything
 
 ```sh

@@ -67,6 +67,13 @@ Usage:
                         output as if run there
   wt git-log [name]     run git log in a worktree (default: the current one);
                         extra arguments pass through to git log
+  wt snapshot [msg]     record a private, diffable snapshot of this worktree's
+                        tracked and untracked changes — no commit, nothing on
+                        the branch, nothing pushed (alias: snap); numbered per
+                        commit, a commit starts a fresh series.
+                        wt snap ls [--all|<commit>], show [N],
+                        diff [--full] [A] [B] (default: vs the snapshot before;
+                        --full: vs the base commit), purge [--all], rev N
   wt copy [-f] [--from <worktree>] <file> [dst]  copy a file into the current
                         worktree from the root repo (default) or the --from
                         worktree — for files git doesn't carry over (.env, …);
@@ -206,6 +213,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(df(cwd, args))
 	case "status":
 		return run(status(cwd, args))
+	case "snapshot", "snap":
+		return run(snap(cwd, args))
 	case "git-log":
 		return run(gitLog(cwd, args))
 	case "copy":
@@ -244,7 +253,7 @@ var builtinNames = map[string]bool{
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
 	"git-log": true, "finish": true, "init": true, "copy": true,
-	"df": true, "du": true,
+	"df": true, "du": true, "snapshot": true, "snap": true,
 }
 
 // jumpCommands emit a cd script on stdout; the shell wrapper must capture

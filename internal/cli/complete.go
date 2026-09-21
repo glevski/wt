@@ -37,6 +37,8 @@ var commandMenu = []string{
 	"df:disk usage per worktree",
 	"status:show a worktree",
 	"git-log:run git log in a worktree",
+	"snapshot:record a private, diffable snapshot of your changes",
+	"snap:record a snapshot (alias)",
 	"copy:copy a file from another worktree",
 	"remove:remove a worktree",
 	"rm:remove a worktree (alias)",
@@ -176,6 +178,19 @@ func completionCandidates(dir string, words []string) []string {
 	case "finish":
 		return []string{"-d:also delete the worktree", "-b:also delete the branch (needs -d)",
 			"-f:discard local changes"}
+	case "snapshot", "snap":
+		if len(rest) == 0 {
+			return snapMenu
+		}
+		if len(rest) == 1 {
+			switch rest[0] {
+			case "show", "diff", "rev":
+				return snapshotCandidates(dir)
+			case "ls", "list":
+				return seriesCandidates(dir)
+			}
+		}
+		return nil
 	case "init":
 		return []string{"zsh", "bash"}
 	case "prompt":
@@ -196,6 +211,41 @@ func projectNames(dir string) []string {
 		names = append(names, p[0])
 	}
 	return names
+}
+
+var snapMenu = []string{
+	"ls:list snapshots (--all: every series, <commit>: one series)",
+	"show:what a snapshot added",
+	"diff:working tree vs latest, N vs N-1, A vs B; --full: vs the base commit",
+	"purge:delete the current series (--all: every series)",
+	"rev:print a snapshot's sha",
+}
+
+// snapshotCandidates lists the current series, newest first.
+func snapshotCandidates(dir string) []string {
+	wt, err := snapWorktree(dir)
+	if err != nil {
+		return nil
+	}
+	series := loadSnapshots(wt.Path)[snapHead(wt.Path)]
+	var out []string
+	for i := len(series) - 1; i >= 0; i-- {
+		out = append(out, fmt.Sprintf("%d:%s (%s)", series[i].N, series[i].Message, ago(series[i].When)))
+	}
+	return out
+}
+
+func seriesCandidates(dir string) []string {
+	wt, err := snapWorktree(dir)
+	if err != nil {
+		return nil
+	}
+	byBase := loadSnapshots(wt.Path)
+	out := []string{"--all:every series"}
+	for _, base := range seriesOrder(byBase, snapHead(wt.Path)) {
+		out = append(out, fmt.Sprintf("%s:%d snapshot(s)", shortSHA(base), len(byBase[base])))
+	}
+	return out
 }
 
 // definedAliases renders the user's aliases as first-word menu entries.

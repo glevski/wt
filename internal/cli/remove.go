@@ -129,6 +129,9 @@ func removeMatching(ws *workspace, pattern string, force, deleteBranch bool) err
 func removeWorktree(ws *workspace, wt *git.Worktree, force, deleteBranch bool, forceHint string) error {
 	name := filepath.Base(wt.Path)
 	stopDepsWorker(wt.Path)
+	if n := countSnapshots(wt.Path); n > 0 {
+		logf("%d snapshot(s) in '%s' go with it", n, name)
+	}
 	removeArgs := []string{"worktree", "remove"}
 	if force {
 		removeArgs = append(removeArgs, "--force")
