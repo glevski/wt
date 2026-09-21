@@ -432,7 +432,8 @@ Polishing a change takes several rounds, and committing each one is overkill
 (alias `snap`) records the worktree's current state — tracked edits **and**
 untracked files, ignored files excluded — as a local, commit-like object:
 never on the branch, never pushed, invisible to `git log`, `git branch` and
-other worktrees, gone with the worktree.
+other worktrees (only `git log --all`, which lists every ref, shows them —
+as it shows your stash), gone with the worktree.
 
 ```sh
 wt snap                    # record "snapshot 1"; the next call is "snapshot 2", …
