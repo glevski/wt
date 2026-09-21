@@ -168,9 +168,12 @@ func snapList(dir string, args []string) error {
 		rows := make([][]string, 0, len(series))
 		for j := len(series) - 1; j >= 0; j-- { // newest first, like git log
 			s := series[j]
-			rows = append(rows, []string{strconv.Itoa(s.N), ago(s.When), changeSummary(wt.Path, snapParent(series, j), s.SHA), s.Message})
+			rows = append(rows, []string{
+				strconv.Itoa(s.N), ago(s.When), changeSummary(wt.Path, snapParent(series, j), s.SHA),
+				s.Message, s.When.Local().Format("2006-01-02 15:04"),
+			})
 		}
-		printTable([]string{"N", "AGE", "FILES", "MESSAGE"}, rows)
+		printTable([]string{"N", "AGE", "FILES", "MESSAGE", "CREATED"}, rows)
 	}
 	return nil
 }

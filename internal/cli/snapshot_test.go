@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"wt/internal/gittest"
 )
@@ -144,6 +145,9 @@ func TestSnapshotSeriesResetOnCommit(t *testing.T) {
 	}
 	if strings.Contains(out.String(), shortSHA(oldBase)) || !strings.Contains(out.String(), "snapshot 1") {
 		t.Errorf("ls should show only the current series:\n%s", out.String())
+	}
+	if today := time.Now().Format("2006-01-02"); !strings.Contains(out.String(), "CREATED") || !strings.Contains(out.String(), today) {
+		t.Errorf("ls should end with the creation date column:\n%s", out.String())
 	}
 
 	out, _ = setupOutputs(t)

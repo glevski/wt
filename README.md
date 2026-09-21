@@ -438,7 +438,7 @@ as it shows your stash), gone with the worktree.
 ```sh
 wt snap                    # record "snapshot 1"; the next call is "snapshot 2", …
 wt snap polish the auth    # …or with a message (-m if it would read as a subcommand)
-wt snap ls                 # this series: N, AGE, FILES, MESSAGE
+wt snap ls                 # this series: N, AGE, FILES, MESSAGE, CREATED
 wt snap show 2             # what iteration 2 added — git show, pager and colors
 wt snap diff               # working tree vs the latest snapshot: what changed since you last recorded
 wt snap diff 2             # snapshot 2 vs 1: what iteration 2 added
