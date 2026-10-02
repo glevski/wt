@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -181,6 +182,84 @@ func TestSnapshotSeriesResetOnCommit(t *testing.T) {
 	}
 }
 
+func TestSnapshotListJSON(t *testing.T) {
+	_, wt := snapFixture(t)
+	head := gittest.Git(t, wt, "rev-parse", "HEAD")
+	list := func(args ...string) snapshotsJSON {
+		t.Helper()
+		out, _ := setupOutputs(t)
+		if err := snap(wt, append([]string{"ls", "--json"}, args...)); err != nil {
+			t.Fatal(err)
+		}
+		var doc snapshotsJSON
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatalf("not JSON: %v\n%s", err, out.String())
+		}
+		return doc
+	}
+
+	// nothing recorded yet: still a document, never narration on stdout
+	if doc := list(); doc.Schema != 1 || doc.Worktree != wt || doc.Head != head || len(doc.Series) != 0 {
+		t.Errorf("empty = %+v", doc)
+	}
+
+	if err := snap(wt, []string{"first", "round"}); err != nil { // 1: README edit + notes.txt
+		t.Fatal(err)
+	}
+	gittest.WriteFile(t, wt, "second.txt", "more\n")
+	if err := snap(wt, nil); err != nil { // 2: second.txt
+		t.Fatal(err)
+	}
+
+	doc := list()
+	if len(doc.Series) != 1 || !doc.Series[0].Current || doc.Series[0].Base != head || doc.Series[0].Subject != "gitignore" {
+		t.Fatalf("series = %+v", doc.Series)
+	}
+	snaps := doc.Series[0].Snapshots
+	if len(snaps) != 2 || snaps[0].N != 2 || snaps[1].N != 1 {
+		t.Fatalf("snapshots = %+v, want newest first", snaps)
+	}
+	first, second := snaps[1], snaps[0]
+	if first.Message != "first round" || first.Parent != head || first.Files != 2 || first.Insertions != 2 || first.Deletions != 0 {
+		t.Errorf("snapshot 1 = %+v", first)
+	}
+	if second.Message != "snapshot 2" || second.Parent != first.SHA || second.Files != 1 || second.Insertions != 1 {
+		t.Errorf("snapshot 2 = %+v", second)
+	}
+	if first.SHA != gittest.Git(t, wt, "rev-parse", snapRef(head, 1)) || first.Created.IsZero() {
+		t.Errorf("snapshot 1 sha/created = %+v", first)
+	}
+
+	// a commit starts a new series: the default view is empty, --all keeps the old one
+	gittest.Commit(t, wt, "commit the work")
+	if doc := list(); len(doc.Series) != 0 || doc.Head == head {
+		t.Errorf("after commit = %+v, want no series on the new head", doc)
+	}
+	doc = list("--all")
+	if len(doc.Series) != 1 || doc.Series[0].Current || doc.Series[0].Base != head || len(doc.Series[0].Snapshots) != 2 {
+		t.Errorf("--all after commit = %+v", doc.Series)
+	}
+	if doc := list(head[:7]); len(doc.Series) != 1 || doc.Series[0].Base != head {
+		t.Errorf("<commit> = %+v", doc.Series)
+	}
+}
+
+func TestParseShortstat(t *testing.T) {
+	for _, c := range []struct {
+		stat                string
+		files, added, taken int
+	}{
+		{" 3 files changed, 40 insertions(+), 2 deletions(-)", 3, 40, 2},
+		{" 1 file changed, 1 insertion(+)", 1, 1, 0},
+		{" 1 file changed, 5 deletions(-)", 1, 0, 5},
+		{"", 0, 0, 0},
+	} {
+		if f, a, d := parseShortstat(c.stat); f != c.files || a != c.added || d != c.taken {
+			t.Errorf("parseShortstat(%q) = %d, %d, %d", c.stat, f, a, d)
+		}
+	}
+}
+
 func TestSnapshotShowAndDiff(t *testing.T) {
 	_, wt := snapFixture(t)
 	if err := snap(wt, nil); err != nil { // 1: README edit + notes.txt
@@ -339,7 +418,8 @@ func TestSnapshotCompletion(t *testing.T) {
 	if got := completionCandidates(wt, []string{"snap", "show"}); !slices.Contains(got, "1:snapshot 1 (now)") {
 		t.Errorf("snapshot candidates = %v", got)
 	}
-	if got := completionCandidates(wt, []string{"snapshot", "ls"}); len(got) != 2 || got[0] != "--all:every series" {
+	if got := completionCandidates(wt, []string{"snapshot", "ls"}); len(got) != 3 || got[0] != "--all:every series" ||
+		!strings.HasPrefix(got[1], "--json:") {
 		t.Errorf("series candidates = %v", got)
 	}
 }

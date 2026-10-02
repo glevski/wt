@@ -379,6 +379,17 @@ it starts as `-` and travels/dies with the worktree.
 Rows are ordered for scanning: the root repo first, then base branches, then
 everything else by most recent checkout (most recently created as tiebreak).
 
+`wt list --json` prints the same rows, in the same order, as one JSON
+document — plus what the table leaves out: each worktree's `path`, full
+`head` SHA, `kind` (`main`, `base`, `managed`, `external`), the `base` branch
+it was created from, the raw `deps` state, and timestamps instead of ages
+(`created`, `checkout`, plus `committed`, the date of its head commit). A
+dirty worktree also carries the size of its uncommitted changes — `files`,
+`insertions`, `deletions`, like `git diff --shortstat HEAD` but with untracked
+files counted in.
+Peeks come as a separate `peeks` array. See
+[Scripting and editor integration](#scripting-and-editor-integration).
+
 ### `wt df` (alias: `du`)
 
 What each worktree actually costs on disk, sorted biggest-first — and
@@ -454,6 +465,9 @@ fresh series at 1, and the old one stays until purged. `wt snap ls --all`
 shows every series grouped by its base commit, `wt snap ls <commit>` one of
 them, and `<commit>:N` addresses a snapshot in it (`wt snap show a1b2c3d:2`).
 Extra arguments to `show` and `diff` pass through to git (`--stat`, paths, …).
+`wt snap ls --json` (with `--all` or `<commit>` as usual) prints the series as
+one JSON document — each snapshot with its `sha`, the `parent` it diffs
+against, message, timestamp and change counts.
 
 Under the hood a snapshot is a commit whose tree is built from a throwaway
 index and stored under `refs/worktree/wt/snap/…` — git's per-worktree ref
@@ -536,6 +550,38 @@ suffix in `wt list`, and `(base: staging, drifted)` in `wt status`.
 `wt link`. Override the base directory with the `WT_ROOT` environment variable
 or `git config wt.root` (per-repo or global); `~` and relative values resolve
 against your home directory.
+
+## Scripting and editor integration
+
+Two things make wt usable from a script or an editor extension, where there
+is no `wt()` shell function to eval a `cd`:
+
+- **`wt list --json`** is the stable way to read state — worktree names,
+  paths, branches, kinds and deps states. Fields are only added; the `schema`
+  number changes if one ever changes meaning.
+
+  ```sh
+  wt list --json | jq -r '.worktrees[] | select(.state == "dirty") | .path'
+  ```
+
+- **`wt snap ls --json`** does the same for snapshots: every series with its
+  snapshots' SHAs, parents and change counts.
+
+- **`WT_JUMP=json`** makes every jump command (`checkout`, `create -c`,
+  `fork -c`, `home`, `peek`, `finish`, …) print the jump as one JSON line
+  instead of shell code. Everything else about the command is unchanged.
+
+  ```sh
+  $ WT_JUMP=json worktree create -c feature/auth
+  {"cd":"/home/you/worktrees/devbox/feature-auth","home":"/home/you/code/devbox"}
+  ```
+
+Call the `worktree` binary directly in both cases, flags before arguments.
+
+The Cursor / VS Code extension, [wt-vscode](https://github.com/glevski/wt-vscode),
+is built on exactly these: a Worktrees tab in the sidebar with the worktree list and
+the current worktree's snapshots, plus switch, create, fork, remove, finish
+and snapshot as editor commands.
 
 ## Notes
 

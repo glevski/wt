@@ -49,8 +49,9 @@ here — give them the path, or the command to run in their own shell.
   `root checkout` emit a `cd` script for the `wt()` function. Running them
   from a script or a non-interactive tool call prints the script instead of
   moving anywhere.
-  **When automating, resolve the path first** — `wt list` or `wt status <name>`
-  shows it — then use `git -C <path> …` or `cd <path> && …` in a single command.
+  **When automating, resolve the path first** — `wt list --json` or
+  `wt status <name>` shows it — then use `git -C <path> …` or
+  `cd <path> && …` in a single command.
 - **Never pipe a jump command** (`wt ch x | tee`): the shell function runs in a
   subshell and the `cd` is lost.
 - Worktrees live in `~/worktrees/<project>/<worktree>`; override the base with
@@ -188,6 +189,7 @@ wt finish -d          # …and delete the worktree (-b also deletes its branch, 
 
 ```sh
 wt list                       # worktree table (alias: ls)
+wt list --json                # same rows as JSON, with paths — use this to script
 wt status [name]              # project, worktree, branch, commit, path, deps state
 wt status -g [name]           # …plus real `git status` output as if run there
 wt git-log [name] [git args]  # git log in a worktree; extra args pass through
@@ -198,6 +200,14 @@ ordered root repo → bases → the rest by most recent checkout. Names are
 colored by kind: **cyan** main checkout, **orange** base, **green** wt-managed,
 **magenta** worktrees made by other tools, **red** peeks; a drifted base shows
 a red branch with a `!` suffix.
+
+`wt list --json` is one document: `project`, `linked`, `root`, a `worktrees`
+array (`name`, `path`, `branch`, `head`, `kind` = main | base | managed |
+external, `current`, `state` = clean | dirty, `deps`, `base`, `pinned`,
+`drifted`, `created`, `checkout`, `committed`, and for a dirty one `files`,
+`insertions`, `deletions` — uncommitted changes, untracked files included)
+and a `peeks` array. Prefer it over parsing
+the table.
 
 ```sh
 wt df                         # real disk cost per worktree, biggest first (alias: du)
@@ -267,6 +277,7 @@ cd <worktree> && worktree snap -m "show the new layout"        # -m when the mes
 ```sh
 wt snap [message]             # record; "snapshot N" by default, numbered per commit (-m forces a message)
 wt snap ls [--all|<commit>]   # current series / every series / one series
+wt snap ls --json [--all]     # the same as JSON: sha, parent, message, created, change counts
 wt snap show [N]              # what iteration N added (default: latest); git show args pass through
 wt snap diff [--full] [A] [B] # vs the snapshot before (working tree vs latest, N vs N-1);
                               # --full: vs the base commit; A B: any two; git diff args pass through

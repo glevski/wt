@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,7 +16,7 @@ import (
 )
 
 const snapUsage = `usage: wt snapshot [-m <msg>] [msg...]   (alias: snap)
-       wt snap ls [--all | <commit>]
+       wt snap ls [--json] [--all | <commit>]
        wt snap show [N] [git show args]
        wt snap diff [--full] [A] [B] [git diff args]
        wt snap purge [--all]
@@ -117,19 +118,23 @@ func snapList(dir string, args []string) error {
 	fs := flag.NewFlagSet("wt snap ls", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	all := fs.Bool("all", false, "every series")
+	asJSON := fs.Bool("json", false, "machine-readable output")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 1 || (*all && fs.NArg() == 1) {
-		return errors.New("usage: wt snap ls [--all | <commit>]")
+		return errors.New("usage: wt snap ls [--json] [--all | <commit>]")
 	}
 	wt, err := snapWorktree(dir)
 	if err != nil {
 		return err
 	}
 	byBase := loadSnapshots(wt.Path)
+	head := snapHead(wt.Path)
 	if len(byBase) == 0 {
+		if *asJSON {
+			return writeSnapshotsJSON(wt.Path, head, byBase, nil)
+		}
 		logf("no snapshots — record one: wt snap [message]")
 		return nil
 	}
-	head, _ := git.Run(wt.Path, "rev-parse", "HEAD")
 
 	var bases []string
 	switch {
@@ -143,10 +148,16 @@ func snapList(dir string, args []string) error {
 		bases = []string{base}
 	default:
 		if _, ok := byBase[head]; !ok {
+			if *asJSON {
+				return writeSnapshotsJSON(wt.Path, head, byBase, nil)
+			}
 			logf("no snapshots on %s — %d earlier series: wt snap ls --all", shortSHA(head), len(byBase))
 			return nil
 		}
 		bases = []string{head}
+	}
+	if *asJSON {
+		return writeSnapshotsJSON(wt.Path, head, byBase, bases)
 	}
 
 	paint := colorEnabled()
@@ -176,6 +187,76 @@ func snapList(dir string, args []string) error {
 		printTable([]string{"N", "AGE", "FILES", "MESSAGE", "CREATED"}, rows)
 	}
 	return nil
+}
+
+// snapshotsJSON is the `wt snap ls --json` document: the same series and
+// rows the tables show, in the same order. Fields are only ever added;
+// schema is bumped when one changes meaning or goes away.
+type snapshotsJSON struct {
+	Schema   int          `json:"schema"`
+	Worktree string       `json:"worktree"`
+	Head     string       `json:"head"`
+	Series   []seriesJSON `json:"series"`
+}
+
+type seriesJSON struct {
+	Base      string         `json:"base"` // the commit the series sits on
+	Subject   string         `json:"subject"`
+	Current   bool           `json:"current"`
+	Snapshots []snapshotJSON `json:"snapshots"` // newest first
+}
+
+type snapshotJSON struct {
+	N          int       `json:"n"`
+	SHA        string    `json:"sha"`
+	Parent     string    `json:"parent"` // what it diffs against: the snapshot before, or the base commit
+	Message    string    `json:"message"`
+	Created    time.Time `json:"created"`
+	Files      int       `json:"files"`
+	Insertions int       `json:"insertions"`
+	Deletions  int       `json:"deletions"`
+}
+
+func writeSnapshotsJSON(wtPath, head string, byBase map[string][]snapshot, bases []string) error {
+	doc := snapshotsJSON{Schema: 1, Worktree: wtPath, Head: head, Series: []seriesJSON{}}
+	for _, base := range bases {
+		series := byBase[base]
+		subject, _ := git.Run(wtPath, "log", "-1", "--format=%s", base)
+		entry := seriesJSON{Base: base, Subject: subject, Current: base == head, Snapshots: []snapshotJSON{}}
+		for j := len(series) - 1; j >= 0; j-- {
+			s := series[j]
+			row := snapshotJSON{N: s.N, SHA: s.SHA, Parent: snapParent(series, j), Message: s.Message, Created: s.When}
+			stat, _ := git.Run(wtPath, "diff", "--shortstat", row.Parent, s.SHA)
+			row.Files, row.Insertions, row.Deletions = parseShortstat(stat)
+			entry.Snapshots = append(entry.Snapshots, row)
+		}
+		doc.Series = append(doc.Series, entry)
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	return enc.Encode(doc)
+}
+
+// parseShortstat reads the numbers out of `git diff --shortstat`:
+// " 3 files changed, 40 insertions(+), 2 deletions(-)".
+func parseShortstat(stat string) (files, insertions, deletions int) {
+	for _, part := range strings.Split(stat, ",") {
+		fields := strings.Fields(part)
+		if len(fields) < 2 {
+			continue
+		}
+		n, _ := strconv.Atoi(fields[0])
+		switch {
+		case strings.HasPrefix(fields[1], "file"):
+			files = n
+		case strings.HasPrefix(fields[1], "insertion"):
+			insertions = n
+		case strings.HasPrefix(fields[1], "deletion"):
+			deletions = n
+		}
+	}
+	return files, insertions, deletions
 }
 
 func snapShow(dir string, args []string) error {

@@ -106,6 +106,8 @@ func completionCandidates(dir string, words []string) []string {
 		return worktreeNames(dir, nil)
 	case "status", "git-log":
 		return worktreeNames(dir, nil)
+	case "list", "ls":
+		return []string{"--json:machine-readable output, with paths"}
 	case "copy":
 		if len(rest) > 0 && rest[len(rest)-1] == "--from" {
 			return worktreeNames(dir, nil)
@@ -241,7 +243,7 @@ func seriesCandidates(dir string) []string {
 		return nil
 	}
 	byBase := loadSnapshots(wt.Path)
-	out := []string{"--all:every series"}
+	out := []string{"--all:every series", "--json:machine-readable output"}
 	for _, base := range seriesOrder(byBase, snapHead(wt.Path)) {
 		out = append(out, fmt.Sprintf("%s:%d snapshot(s)", shortSHA(base), len(byBase[base])))
 	}

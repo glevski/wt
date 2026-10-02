@@ -58,7 +58,9 @@ Usage:
                         list (default), rm [-f] <name>,
                         update [name] (fast-forward to upstream),
                         reset [--hard] [name] (hard-sync to upstream)
-  wt list               list this repo's worktrees (alias: ls)
+  wt list [--json]      list this repo's worktrees (alias: ls); --json prints
+                        them as one JSON document, with paths — for scripts
+                        and editor integrations
   wt df                 disk usage per worktree — deps state, size, deps size
                         and hardlink-shared bytes, plus a deduplicated total
                         (alias: du); big trees take a moment
@@ -71,7 +73,7 @@ Usage:
                         tracked and untracked changes — no commit, nothing on
                         the branch, nothing pushed (alias: snap); numbered per
                         commit, a commit starts a fresh series.
-                        wt snap ls [--all|<commit>], show [N],
+                        wt snap ls [--json] [--all|<commit>], show [N],
                         diff [--full] [A] [B] (default: vs the snapshot before;
                         --full: vs the base commit), purge [--all], rev N
   wt copy [-f] [--from <worktree>] <file> [dst]  copy a file into the current
