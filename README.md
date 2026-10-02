@@ -10,7 +10,7 @@ jump between worktrees with a two-letter command.
 Prebuilt binary (macOS/Linux, checksum-verified, installs to `~/.local/bin`):
 
 ```sh
-curl -fsSL https://github.com/nithenz/wt/raw/main/install.sh | sh
+curl -fsSL https://github.com/glevski/wt/raw/main/install.sh | sh
 ```
 
 Or from a checkout:

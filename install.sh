@@ -2,11 +2,11 @@
 # Installs the latest wt release binary for this machine, checksum-verified,
 # as ~/.local/bin/worktree (override the directory with WT_INSTALL_DIR):
 #
-#   curl -fsSL https://github.com/nithenz/wt/raw/main/install.sh | sh
+#   curl -fsSL https://github.com/glevski/wt/raw/main/install.sh | sh
 #
 set -eu
 
-repo="nithenz/wt"
+repo="glevski/wt"
 install_dir="${WT_INSTALL_DIR:-$HOME/.local/bin}"
 
 say() { printf 'wt: %s\n' "$*" >&2; }
