@@ -13,15 +13,15 @@ Prebuilt binary (macOS/Linux, checksum-verified, installs to `~/.local/bin`):
 curl -fsSL https://github.com/glevski/wt/raw/main/install.sh | sh
 ```
 
-Or from a checkout:
+The installer also adds `eval "$(worktree init zsh)"` (or `init bash`) to your
+`~/.zshrc` / `~/.bashrc` unless it is already there, so `wt` works in the next
+shell you open. To keep it away from the rc file and add the line yourself,
+run it as `curl … | WT_NO_MODIFY_RC=1 sh`.
+
+Or from a checkout — here you wire up the shell function yourself:
 
 ```sh
 make install                      # builds ~/.local/bin/worktree
-```
-
-Either way, wire up the shell function:
-
-```sh
 echo 'eval "$(worktree init zsh)"' >> ~/.zshrc   # or: init bash
 ```
 
