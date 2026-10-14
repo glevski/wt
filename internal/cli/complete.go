@@ -29,6 +29,7 @@ var commandMenu = []string{
 	"ch:jump to a worktree (alias)",
 	"home:jump to the main checkout",
 	"switch:toggle current and previous location",
+	"ui:open the interactive worktree browser (needs wt-ui)",
 	"root:run a command in the root repo's context",
 	"global:work with linked projects from anywhere",
 	"base:manage base branches",

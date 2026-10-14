@@ -168,6 +168,7 @@ func TestJumpAliasProbe(t *testing.T) {
 		// jump builtins missing from an older wrapper's static case list
 		// are answered too — new commands jump without a re-source
 		{[]string{"finish", "-d"}, "1\n"},
+		{[]string{"ui", ""}, "1\n"},
 		{[]string{"global", "ch"}, "1\n"},
 		{[]string{"global", "list"}, ""},
 	} {

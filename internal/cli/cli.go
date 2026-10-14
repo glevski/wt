@@ -41,6 +41,10 @@ Usage:
                         wt peek off returns and deletes it (alias: wt unpeek)
   wt switch             toggle between the current and last-used location,
                         like cd - (state is per shell)
+  wt ui                 open the interactive worktree browser: the diff on
+                        the left, worktrees by recency on the right, ^s or
+                        Ctrl+Enter to jump (needs wt-ui, installed
+                        separately: https://github.com/glevski/wt-tui)
   wt root <cmd> [args]  run status, checkout, create or fork in the root
                         repo's context, e.g. wt root fork -c forks the root's
                         current state from wherever you stand
@@ -156,6 +160,10 @@ func Run(args []string) int {
 		return 0
 	}
 	if err := dispatch(cmd, rest); err != nil {
+		var exit *exitError
+		if errors.As(err, &exit) {
+			return exit.code
+		}
 		fmt.Fprintf(stderr, "wt: %v\n", err)
 		var withHint *hintError
 		if errors.As(err, &withHint) {
@@ -203,6 +211,8 @@ func runBuiltin(cwd, cmd string, args []string) (bool, error) {
 		return run(checkout(cwd, args))
 	case "home":
 		return run(home(cwd, args))
+	case "ui":
+		return run(ui(cwd, args))
 	case "root":
 		return run(root(cwd, args))
 	case "global":
@@ -255,7 +265,7 @@ var builtinNames = map[string]bool{
 	"status": true, "remove": true, "rm": true, "reset": true, "link": true,
 	"deps": true, "peek": true, "unpeek": true, "prompt": true, "alias": true,
 	"git-log": true, "finish": true, "init": true, "copy": true,
-	"df": true, "du": true, "snapshot": true, "snap": true,
+	"df": true, "du": true, "snapshot": true, "snap": true, "ui": true,
 }
 
 // jumpCommands emit a cd script on stdout; the shell wrapper must capture
@@ -263,7 +273,7 @@ var builtinNames = map[string]bool{
 var jumpCommands = map[string]bool{
 	"checkout": true, "ch": true, "create": true, "fork": true,
 	"home": true, "switch": true, "peek": true, "unpeek": true,
-	"finish": true,
+	"finish": true, "ui": true,
 }
 
 // logf prints one line of human-facing narration.
@@ -282,3 +292,9 @@ func (e *hintError) Error() string { return e.msg }
 func hintf(hint, format string, args ...any) error {
 	return &hintError{msg: fmt.Sprintf(format, args...), hint: hint}
 }
+
+// exitError makes Run exit with the status of a program wt ran on the
+// user's behalf, printing nothing: the program has spoken for itself.
+type exitError struct{ code int }
+
+func (e *exitError) Error() string { return fmt.Sprintf("exit status %d", e.code) }

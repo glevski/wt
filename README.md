@@ -221,6 +221,22 @@ jump.
 state (staged, unstaged and untracked changes included) into a new worktree
 on that branch and jumps there — shorthand for `wt fork -c <new-branch>`.
 
+### `wt ui`
+
+Opens [wt-ui](https://github.com/glevski/wt-tui), the full-screen worktree
+browser: the selected worktree's diff on the left, the worktrees by recency
+on the right, `^s` or `Ctrl+Enter` to jump to the selected one. It is a jump
+like `wt ch` — the same `wt()` function evals it — and extra arguments go to
+wt-ui as they are.
+
+wt-ui is a separate program and wt ships without it: wt never bundles or
+downloads it. `wt ui` runs it when it is installed (`$WT_UI_BIN`, `wt-ui` on
+`PATH`, or `~/.local/bin/wt-ui`) and otherwise fails with the install line:
+
+```sh
+curl -fsSL https://github.com/glevski/wt-tui/raw/main/install.sh | sh
+```
+
 ### `wt home`
 
 Jumps back to the main checkout (the root repo), from wherever you are —

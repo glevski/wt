@@ -24,7 +24,7 @@ func completeLines(t *testing.T, dir string, words ...string) []string {
 
 func TestCompleteCommands(t *testing.T) {
 	lines := completeLines(t, t.TempDir()) // works outside a repo too
-	for _, want := range []string{"checkout:", "ch:", "base:", "root:", "rm:"} {
+	for _, want := range []string{"checkout:", "ch:", "base:", "root:", "rm:", "ui:"} {
 		if !slices.ContainsFunc(lines, func(l string) bool { return strings.HasPrefix(l, want) }) {
 			t.Errorf("command menu missing %q entry:\n%v", want, lines)
 		}
