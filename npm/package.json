@@ -1,0 +1,39 @@
+{
+  "name": "@glevski/wt",
+  "version": "0.0.0",
+  "description": "wt: a fast git worktree manager. Create a worktree from any branch, fork your working state into a new one, and jump between worktrees with a two-letter command.",
+  "keywords": [
+    "git",
+    "worktree",
+    "worktrees",
+    "wt",
+    "cli"
+  ],
+  "homepage": "https://wt.glevski.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glevski/wt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/glevski/wt/issues"
+  },
+  "license": "MIT",
+  "author": "Kirill Godlevski",
+  "bin": {
+    "worktree": "bin/worktree"
+  },
+  "files": [
+    "bin"
+  ],
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "arm64",
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

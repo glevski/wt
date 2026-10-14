@@ -1,0 +1,30 @@
+#!/bin/sh
+# The npm entry point for wt. The package carries one Go binary per platform
+# next to this script; npm can only link a command to a single fixed file, so
+# this picks the binary for the machine it runs on and becomes it.
+
+# npm links the command as a symlink: follow it to where the package lives
+self=$0
+while [ -L "$self" ]; do
+    target=$(readlink "$self")
+    case $target in
+        /*) self=$target ;;
+        *) self=$(dirname "$self")/$target ;;
+    esac
+done
+dir=$(cd -P "$(dirname "$self")" && pwd)
+
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+case $arch in
+    x86_64 | amd64) arch=amd64 ;;
+    arm64 | aarch64) arch=arm64 ;;
+esac
+
+binary="$dir/worktree-$os-$arch"
+if [ ! -x "$binary" ]; then
+    echo "wt: no binary for $os $arch in this package" >&2
+    echo "hint: wt ships for macOS and Linux on arm64 and x86_64" >&2
+    exit 1
+fi
+exec "$binary" "$@"
